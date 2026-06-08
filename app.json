@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "kapota-mobile",
-    "slug": "kapota-mobile",
+    "name": "Kapota",
+    "slug": "Kapota",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -34,7 +34,8 @@
             "imageWidth": 76
           }
         }
-      ]
+      ],
+      "expo-image"
     ],
     "experiments": {
       "typedRoutes": true,
