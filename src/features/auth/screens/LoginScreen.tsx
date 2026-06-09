@@ -2,9 +2,6 @@ import { AuthScreenWrapper } from "@/features/auth/components/AuthScreenWrapper"
 import { AuthInput } from "@/features/auth/components/AuthInput";
 import { PrimaryButton } from "@/features/auth/components/PrimaryButton";
 import { darkColors, spacing, typography } from "@/theme/tokens";
-import { validateForm } from "@/utils/validators";
-import { showErrorToast, showSuccessToast } from "@/utils/toast";
-import { useState } from "react";
 import {
   ScrollView,
   StyleSheet,
@@ -13,25 +10,29 @@ import {
   View,
 } from "react-native";
 import { router } from "expo-router";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { loginSchema, LoginFormData } from "../validation/authScreen";
+import { useAuthStore } from "../store/auth.store";
+import { Loader } from "lucide-react-native";
 
 export default function LoginScreen() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const { isLoading, login } = useAuthStore();
+  const {
+    control,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<LoginFormData>({
+    resolver: zodResolver(loginSchema),
 
-  const handleSubmit = () => {
-    const validation = validateForm({
-      email,
-      password,
-      isForLogin: true,
-    });
+    defaultValues: {
+      email: "",
+      password: "",
+    },
+  });
 
-    if (!validation.isValid) {
-      showErrorToast(validation.message || "Validation failed");
-      return;
-    }
-
-    showSuccessToast("Login successful!");
-    console.log("Login with:", { email, password });
+  const onSubmit = (data: LoginFormData) => {
+    login(data);
   };
 
   const handleSignUpRedirect = () => {
@@ -52,18 +53,46 @@ export default function LoginScreen() {
             Enter your email or password to continue your journey.
           </Text>
 
-          <AuthInput
-            placeholder="Enter email"
-            value={email}
-            onChangeText={setEmail}
-          />
-          <AuthInput
-            placeholder="Enter password"
-            value={password}
-            onChangeText={setPassword}
+          <Controller
+            control={control}
+            name="email"
+            render={({ field }) => (
+              <AuthInput
+                placeholder="Enter email"
+                value={field.value}
+                onChangeText={field.onChange}
+              />
+            )}
           />
 
-          <PrimaryButton onPress={handleSubmit} label="Login" />
+          {errors.email && (
+            <Text className="text-red-500 mt-1">{errors.email.message}</Text>
+          )}
+
+          <Controller
+            control={control}
+            name="email"
+            render={({ field }) => (
+              <AuthInput
+                placeholder="Enter password"
+                value={field.value}
+                onChangeText={field.onChange}
+              />
+            )}
+          />
+
+          {errors.password && (
+            <Text className="text-red-500 mt-1">{errors.password.message}</Text>
+          )}
+
+          <PrimaryButton
+            onPress={handleSubmit(onSubmit)}
+            label={
+              isLoading
+                ? `${(<Loader className="h-5 w-5 animate-spin" />)} Logging...`
+                : "Login"
+            }
+          />
 
           <View style={styles.signup}>
             <Text numberOfLines={1} style={styles.signupText}>
