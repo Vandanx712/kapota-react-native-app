@@ -1,4 +1,4 @@
-import { LoginFormData } from "../validation/authScreen";
+import { LoginFormData, SignupFormData } from "../validation/authScreen";
 
 export interface AuthState {
   authUser: object | null;
@@ -6,7 +6,7 @@ export interface AuthState {
   isLoading: boolean;
   isCheckingAuth: boolean;
 
-  signup: () => Promise<void>;
+  requestSignupOtp: (data:SignupFormData) => Promise<void>;
   login: (data:LoginFormData) => Promise<any>;
   checkAuth: () => Promise<void>;
   logout: () => Promise<void>;

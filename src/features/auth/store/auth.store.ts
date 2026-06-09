@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { AuthState } from "../types/store.types";
-import { LoginFormData } from "../validation/authScreen";
-import { checkUser, loginuser } from "../api/authApi";
+import { LoginFormData, SignupFormData } from "../validation/authScreen";
+import { checkUser, loginuser, requestSignupOtp } from "../api/authApi";
 import { showSuccessToast, showErrorToast } from "@/utils/toast";
 import axios from "axios";
 
@@ -11,7 +11,23 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isLoading: false,
   isCheckingAuth: false,
 
-  signup: async () => {},
+  requestSignupOtp: async (data: SignupFormData) => {
+    set({ isLoading: true });
+    try {
+      const resdata = await requestSignupOtp(data);
+      showSuccessToast(resdata.message);
+      return true;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        showErrorToast(error.response?.data?.message);
+      } else {
+        showErrorToast("Something went wrong");
+      }
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+
   login: async (data: LoginFormData) => {
     try {
       set({ isLoading: true });
@@ -29,15 +45,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
   checkAuth: async () => {
-  try {
-    set({ isCheckingAuth: true });
+    try {
+      set({ isCheckingAuth: true });
 
-    const data = await checkUser();
-    set({ authUser: data.user });
-  } catch (error) {
-    set({ authUser: null, token: null });
-  } finally {
-    set({ isCheckingAuth: false });
-  }
-},
+      const data = await checkUser();
+      set({ authUser: data.user });
+    } catch (error) {
+      set({ authUser: null, token: null });
+    } finally {
+      set({ isCheckingAuth: false });
+    }
+  },
 }));

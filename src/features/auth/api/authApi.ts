@@ -2,12 +2,24 @@ import { api } from "@/lib/api";
 import { LoginFormData, SignupFormData } from "../validation/authScreen";
 
 export const requestSignupOtp = async (data: SignupFormData) => {
-  const response = await api.post("/auth/signup/request-otp", data);
+  const response = await api.post("/auth/signup/request-otp", {
+    fullname: `${data.firstname} ${data.lastname}`,
+    email: data.email,
+    gender: data.gender,
+    password: data.password,
+    location: data.location,
+  });
   return response.data;
 };
 
-export const verifySignupOtp = async (data) => {
-  const response = await api.post("/auth/signup/verify", data);
+export const verifySignupOtp = async (data: SignupFormData) => {
+  const response = await api.post("/auth/signup/verify", {
+    fullname: `${data.firstname} ${data.lastname}`,
+    email: data.email,
+    gender: data.gender,
+    password: data.password,
+    location: data.location,
+  });
   return response.data;
 };
 

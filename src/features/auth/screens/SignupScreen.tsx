@@ -2,8 +2,6 @@ import { AuthInput } from "@/features/auth/components/AuthInput";
 import { AuthScreenWrapper } from "@/features/auth/components/AuthScreenWrapper";
 import { PrimaryButton } from "@/features/auth/components/PrimaryButton";
 import { darkColors, spacing, typography } from "@/theme/tokens";
-import { showErrorToast, showSuccessToast } from "@/utils/toast";
-import { validateForm } from "@/utils/validators";
 import { router } from "expo-router";
 import { useState } from "react";
 import {
@@ -13,31 +11,29 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { SignupFormData, signupSchema } from "../validation/authScreen";
+import { useAuthStore } from "../store/auth.store";
+import { Loader } from "lucide-react-native";
 
 export default function SignupScreen() {
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [gender, setGender] = useState("");
+  const { isLoading, signup } = useAuthStore();
+  const {
+    control,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<SignupFormData>({
+    resolver: zodResolver(signupSchema),
+    defaultValues: {
+      firstname: "",
+      lastname: "",
+      email: "",
+      password: "",
+    },
+  });
 
-  const handleSignUp = () => {
-    const validation = validateForm({
-      firstName,
-      lastName,
-      email,
-      password,
-      gender,
-      isForLogin: false,
-    });
-
-    if (!validation.isValid) {
-      showErrorToast(validation.message || "Validation failed");
-      return;
-    }
-
-    showSuccessToast("Account created successfully!");
-  };
+  const onSubmit = () => {};
 
   const handleLoginRedirect = () => {
     router.replace("/(auth)/login");
@@ -57,30 +53,79 @@ export default function SignupScreen() {
             Sign up to start your journey with us.
           </Text>
 
-          <AuthInput
-            placeholder="Enter firstName"
-            value={firstName}
-            onChangeText={setFirstName}
+          <Controller
+            control={control}
+            name="firstname"
+            render={({ field }) => (
+              <AuthInput
+                placeholder="Enter firstName"
+                value={field.value}
+                onChangeText={field.onChange}
+              />
+            )}
           />
 
-          <AuthInput
-            placeholder="Enter lastName"
-            value={lastName}
-            onChangeText={setLastName}
+          {errors.firstname && (
+            <Text className="text-red-500 mt-1">
+              {errors.firstname.message}
+            </Text>
+          )}
+          <Controller
+            control={control}
+            name="lastname"
+            render={({ field }) => (
+              <AuthInput
+                placeholder="Enter lastName"
+                value={field.value}
+                onChangeText={field.onChange}
+              />
+            )}
           />
 
-          <AuthInput
-            placeholder="Enter email"
-            value={email}
-            onChangeText={setEmail}
-          />
-          <AuthInput
-            placeholder="Enter password"
-            value={password}
-            onChangeText={setPassword}
+          {errors.lastname && (
+            <Text className="text-red-500 mt-1">{errors.lastname.message}</Text>
+          )}
+
+          <Controller
+            control={control}
+            name="email"
+            render={({ field }) => (
+              <AuthInput
+                placeholder="Enter email"
+                value={field.value}
+                onChangeText={field.onChange}
+              />
+            )}
           />
 
-          <PrimaryButton onPress={handleSignUp} label="Sign Up" />
+          {errors.email && (
+            <Text className="text-red-500 mt-1">{errors.email.message}</Text>
+          )}
+
+          <Controller
+            control={control}
+            name="password"
+            render={({ field }) => (
+              <AuthInput
+                placeholder="Enter password"
+                value={field.value}
+                onChangeText={field.onChange}
+              />
+            )}
+          />
+
+          {errors.password && (
+            <Text className="text-red-500 mt-1">{errors.password.message}</Text>
+          )}
+
+          <PrimaryButton
+            onPress={handleSubmit(onSubmit)}
+            label={
+              isLoading
+                ? `${(<Loader className="h-5 w-5 animate-spin" />)} SigningUP...`
+                : "Sign up"
+            }
+          />
 
           <View style={styles.signup}>
             <Text numberOfLines={1} style={styles.signupText}>

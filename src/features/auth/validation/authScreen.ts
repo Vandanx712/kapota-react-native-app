@@ -23,7 +23,15 @@ export const signupSchema = z.object({
     .max(7, "Firstname is so long")
     .trim(),
 
-  gender: z.string().trim(),
+  gender: z
+  .string()
+  .min(1, "Gender is required")
+  .refine(
+    value => ["male", "female"].includes(value),
+    {
+      message: "Invalid gender",
+    }
+  ),
 
   location: z.object().optional().nullish(),
 
