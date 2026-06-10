@@ -1,4 +1,4 @@
-import { secureStorage } from "@/services/storage/SecureStorage";
+import { secureStorage } from "@/services/storage/secureStorage";
 import axios from "axios";
 
 export const api = axios.create({
@@ -9,10 +9,21 @@ export const api = axios.create({
 });
 
 api.interceptors.request.use(async (config) => {
-  const token = await secureStorage.getToken();
+  try {
+    const token = await secureStorage.getToken();
+    const deviceId = await secureStorage.getDeviceId();
 
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  else delete config.headers.Authorization;
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
 
-  return config;
+    if (deviceId) {
+      config.headers["X-Device-Id"] = deviceId;
+    }
+
+    return config;
+  } catch (err) {
+    console.log("Interceptor error:", err);
+    return config;
+  }
 });

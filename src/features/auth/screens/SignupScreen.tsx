@@ -3,7 +3,6 @@ import { AuthScreenWrapper } from "@/features/auth/components/AuthScreenWrapper"
 import { PrimaryButton } from "@/features/auth/components/PrimaryButton";
 import { darkColors, spacing, typography } from "@/theme/tokens";
 import { router } from "expo-router";
-import { useState } from "react";
 import {
   ScrollView,
   StyleSheet,
@@ -15,10 +14,9 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { SignupFormData, signupSchema } from "../validation/authScreen";
 import { useAuthStore } from "../store/auth.store";
-import { Loader } from "lucide-react-native";
 
 export default function SignupScreen() {
-  const { isLoading, signup } = useAuthStore();
+  const { isLoading, requestSignupOtp } = useAuthStore();
   const {
     control,
     handleSubmit,
@@ -33,7 +31,9 @@ export default function SignupScreen() {
     },
   });
 
-  const onSubmit = () => {};
+  const onSubmit = (data: SignupFormData) => {
+    requestSignupOtp(data);
+  };
 
   const handleLoginRedirect = () => {
     router.replace("/(auth)/login");
@@ -61,15 +61,11 @@ export default function SignupScreen() {
                 placeholder="Enter firstName"
                 value={field.value}
                 onChangeText={field.onChange}
+                error={errors.firstname?.message}
               />
             )}
           />
 
-          {errors.firstname && (
-            <Text className="text-red-500 mt-1">
-              {errors.firstname.message}
-            </Text>
-          )}
           <Controller
             control={control}
             name="lastname"
@@ -78,13 +74,10 @@ export default function SignupScreen() {
                 placeholder="Enter lastName"
                 value={field.value}
                 onChangeText={field.onChange}
+                error={errors.lastname?.message}
               />
             )}
           />
-
-          {errors.lastname && (
-            <Text className="text-red-500 mt-1">{errors.lastname.message}</Text>
-          )}
 
           <Controller
             control={control}
@@ -94,13 +87,10 @@ export default function SignupScreen() {
                 placeholder="Enter email"
                 value={field.value}
                 onChangeText={field.onChange}
+                error={errors.email?.message}
               />
             )}
           />
-
-          {errors.email && (
-            <Text className="text-red-500 mt-1">{errors.email.message}</Text>
-          )}
 
           <Controller
             control={control}
@@ -110,21 +100,15 @@ export default function SignupScreen() {
                 placeholder="Enter password"
                 value={field.value}
                 onChangeText={field.onChange}
+                error={errors.password?.message}
               />
             )}
           />
 
-          {errors.password && (
-            <Text className="text-red-500 mt-1">{errors.password.message}</Text>
-          )}
-
           <PrimaryButton
             onPress={handleSubmit(onSubmit)}
-            label={
-              isLoading
-                ? `${(<Loader className="h-5 w-5 animate-spin" />)} SigningUP...`
-                : "Sign up"
-            }
+            loading={isLoading}
+            label="Sign up"
           />
 
           <View style={styles.signup}>
@@ -170,34 +154,6 @@ const styles = StyleSheet.create({
     ...typography.bodySm,
     color: darkColors.onSurfaceVariant,
     marginBottom: spacing.lg,
-  },
-
-  label: {
-    ...typography.labelMd,
-    color: darkColors.onSurface,
-    marginBottom: spacing.sm,
-  },
-
-  divider: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginVertical: spacing.lg,
-  },
-
-  //   line: {
-  //     flex: 1,
-  //     height: 1,
-  //     backgroundColor: darkColors.outlineVariant,
-  //   },
-
-  dividerText: {
-    marginHorizontal: spacing.sm,
-    color: darkColors.mutedText,
-    ...typography.labelMd,
-  },
-
-  social: {
-    flexDirection: "row",
   },
 
   signup: {

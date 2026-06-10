@@ -14,7 +14,6 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { loginSchema, LoginFormData } from "../validation/authScreen";
 import { useAuthStore } from "../store/auth.store";
-import { Loader } from "lucide-react-native";
 
 export default function LoginScreen() {
   const { isLoading, login } = useAuthStore();
@@ -61,37 +60,28 @@ export default function LoginScreen() {
                 placeholder="Enter email"
                 value={field.value}
                 onChangeText={field.onChange}
+                error={errors.email?.message}
               />
             )}
           />
 
-          {errors.email && (
-            <Text className="text-red-500 mt-1">{errors.email.message}</Text>
-          )}
-
           <Controller
             control={control}
-            name="email"
+            name="password"
             render={({ field }) => (
               <AuthInput
                 placeholder="Enter password"
                 value={field.value}
                 onChangeText={field.onChange}
+                error={errors.password?.message}
               />
             )}
           />
 
-          {errors.password && (
-            <Text className="text-red-500 mt-1">{errors.password.message}</Text>
-          )}
-
           <PrimaryButton
             onPress={handleSubmit(onSubmit)}
-            label={
-              isLoading
-                ? `${(<Loader className="h-5 w-5 animate-spin" />)} Logging...`
-                : "Login"
-            }
+            loading={isLoading}
+            label="Login"
           />
 
           <View style={styles.signup}>

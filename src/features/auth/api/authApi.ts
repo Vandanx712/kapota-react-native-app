@@ -1,5 +1,6 @@
 import { api } from "@/lib/api";
 import { LoginFormData, SignupFormData } from "../validation/authScreen";
+import { VerifySignup } from "../types/auth.types";
 
 export const requestSignupOtp = async (data: SignupFormData) => {
   const response = await api.post("/auth/signup/request-otp", {
@@ -12,14 +13,8 @@ export const requestSignupOtp = async (data: SignupFormData) => {
   return response.data;
 };
 
-export const verifySignupOtp = async (data: SignupFormData) => {
-  const response = await api.post("/auth/signup/verify", {
-    fullname: `${data.firstname} ${data.lastname}`,
-    email: data.email,
-    gender: data.gender,
-    password: data.password,
-    location: data.location,
-  });
+export const verifySignupOtp = async (data: VerifySignup) => {
+  const response = await api.post("/auth/signup/verify", { data });
   return response.data;
 };
 

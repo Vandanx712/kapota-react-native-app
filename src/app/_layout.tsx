@@ -29,7 +29,7 @@ export default function RootLayout() {
         {authUser ? (
           <Stack.Screen name="(tabs)" />
         ) : (
-          <Stack.Screen name="auth" />
+          <Stack.Screen name="(auth)" />
         )}
       </Stack>
       <Toast config={toastConfig} />

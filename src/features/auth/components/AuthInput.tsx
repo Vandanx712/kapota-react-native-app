@@ -1,6 +1,6 @@
 import { darkColors, spacing, typography } from "@/theme/tokens";
 import { useState } from "react";
-import { StyleSheet, TextInput, View } from "react-native";
+import { StyleSheet, Text, TextInput, View } from "react-native";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -11,12 +11,14 @@ type Props = {
   value: string;
   onChangeText: (text: string) => void;
   placeholder?: string;
+  error?: string;
 };
 
 export function AuthInput({
   value,
   onChangeText,
   placeholder = "Email or password",
+  error = "",
 }: Props) {
   const [isFocused, setIsFocused] = useState(false);
 
@@ -59,13 +61,15 @@ export function AuthInput({
         onBlur={onBlur}
         autoCapitalize="none"
       />
+
+      {error.length > 0 && <Text style={styles.errorText}>{error}</Text>}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   wrapper: {
-    marginBottom: spacing.lg,
+    marginBottom: spacing.xs,
     position: "relative",
   },
 
@@ -81,8 +85,14 @@ const styles = StyleSheet.create({
   },
 
   inputFocused: {
-    borderWidth:2,
+    borderWidth: 2,
     borderColor: darkColors.primary,
+  },
+
+  errorText: {
+    marginVertical: 5,
+    marginHorizontal: 10,
+    color: "red",
   },
 
   glow: {

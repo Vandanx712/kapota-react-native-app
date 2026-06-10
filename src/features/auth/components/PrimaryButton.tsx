@@ -1,4 +1,5 @@
 import { darkColors, spacing, typography } from "@/theme/tokens";
+import { Loader } from "lucide-react-native";
 import React, { useEffect } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import Animated, {
@@ -63,7 +64,11 @@ export function PrimaryButton({ onPress, label, loading = false }: Props) {
           disabled={loading}
           activeOpacity={0.85}
         >
-          <Text style={styles.text}>{label}</Text>
+          {loading ? (
+            <Loader className="h-5 w-5 animate-spin" />
+          ) : (
+            <Text style={styles.text}>{label}</Text>
+          )}
         </TouchableOpacity>
       </Animated.View>
     </View>
