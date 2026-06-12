@@ -23,7 +23,7 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingHorizontal: spacing.marginMobile,
-    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
   },
 });
