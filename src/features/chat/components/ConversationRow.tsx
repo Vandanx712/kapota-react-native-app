@@ -9,11 +9,23 @@ import {
 import { conversation } from "../types/chat.types";
 import Avatar from "./ChatAvatar";
 import { LinearGradient } from "expo-linear-gradient";
+import { useAuthStore } from "@/features/auth/store/auth.store";
+import { useChatStore } from "../store/chat.store";
 
 export default function ConversationRow({ item }: { item: conversation }) {
+  const { onlineUsers, authUser } = useAuthStore();
+  const { typing } = useChatStore();
+  const onlineUserSet = new Set(onlineUsers);
+
+  const isOnline = item.isgroup
+    ? Object.entries(item.groupdetail?.membersDetail).filter(
+        ([id]) => id !== authUser._id && onlineUserSet.has(id),
+      ).length > 0
+    : onlineUserSet.has(item?.oruserId);
+
   return (
     <Pressable style={styles.conversationRow}>
-      <Avatar item={item} />
+      <Avatar item={item} isOnline={isOnline} />
 
       <View style={styles.conversationBody}>
         <View style={styles.rowTop}>
@@ -37,7 +49,20 @@ export default function ConversationRow({ item }: { item: conversation }) {
             <Text style={styles.senderText}>{item.sender}: </Text>
           )} */}
           <Text numberOfLines={1} style={styles.messageText}>
-            {item?.lastmessage?.text}
+            {typing?.receiverId == item.conversationId &&
+            typing?.userId !== authUser._id
+              ? item.isgroup
+                ? `${item.groupdetail?.membersDetail[typing.userId].fullname} is typing...`
+                : "typing..."
+              : item.lastmessage?.deletedForEveryone
+                ? authUser._id == item.lastmessage.sender
+                  ? "You deleted this message"
+                  : "This message was deleted"
+                : item.lastmessage?.image
+                  ? "Image"
+                  : item.lastmessage?.deletedFor?.includes(authUser._id)
+                    ? ""
+                    : item.lastmessage?.text || ""}
           </Text>
         </View>
       </View>

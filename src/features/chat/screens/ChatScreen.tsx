@@ -1,12 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Edit3, Search, UsersRound, CheckCheck } from "lucide-react-native";
-import {
-  FlatList,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { ScreenWrapper } from "@/shared/components/ScreenWrapper";
 
 import {
@@ -20,19 +14,27 @@ import { useChatStore } from "@/features/chat/store/chat.store";
 import { conversation } from "@/features/chat/types/chat.types";
 import Header from "../components/Header";
 import ConversationRow from "../components/ConversationRow";
+import { useAuthStore } from "@/features/auth/store/auth.store";
 
 type Filter = "All" | "Unread" | "Groups" | "Personal";
 const filters: Filter[] = ["All", "Unread", "Groups", "Personal"];
 
 export default function ChatScreen() {
-  const { conversations, getConversation, isConversationLoading } =
-    useChatStore();
+  const conversations = useChatStore((state) => state.conversations);
+  const getConversation = useChatStore((state) => state.getConversation);
+  const isConversationLoading = useChatStore(
+    (state) => state.isConversationLoading,
+  );
+
+  const logout = useAuthStore((state) => state.logout);
   const [activeFilter, setActiveFilter] = useState<Filter>("All");
 
   useEffect(() => {
     getConversation();
   }, []);
-  
+
+  const onEdit = () => logout();
+
   const filteredChats = useMemo(() => {
     switch (activeFilter) {
       case "Groups":
@@ -48,7 +50,7 @@ export default function ChatScreen() {
         return conversations;
     }
   }, [conversations, activeFilter]);
-  
+
   if (isConversationLoading) {
     return (
       <ScreenWrapper>
@@ -56,7 +58,6 @@ export default function ChatScreen() {
       </ScreenWrapper>
     );
   }
-
 
   const changeFilter = (filter: Filter) => {
     setActiveFilter(filter);
@@ -107,7 +108,7 @@ export default function ChatScreen() {
         )}
       />
 
-      <Pressable style={styles.composeButton}>
+      <Pressable style={styles.composeButton} onPress={() => onEdit()}>
         <Edit3 size={25} color={darkColors.onSurface} />
       </Pressable>
     </ScreenWrapper>

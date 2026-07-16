@@ -3,6 +3,7 @@ export interface conversation {
   name: string;
   profilePic?: { url: string; key: string };
   bgImage?: { url: string; key: string };
+  oruserId: string;
   lastmessage?: {
     text: string;
     image: { url: string; key: string };
@@ -20,5 +21,5 @@ export interface conversation {
       profilePic: { url: string; key: string };
     };
   };
-  unseenMsg?: number|null;
+  unseenMsg?: number | null;
 }

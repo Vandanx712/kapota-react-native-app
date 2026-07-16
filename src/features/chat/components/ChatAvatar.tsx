@@ -3,7 +3,9 @@ import { conversation } from "../types/chat.types";
 import { UsersRound } from "lucide-react-native";
 import { darkColors, radius } from "@/theme/tokens";
 
-export default function Avatar({ item }: { item: conversation }) {
+export default function Avatar(
+  { item,isOnline }: { item: conversation,isOnline:boolean },
+) {
   const imageUri = item.isgroup
     ? item.groupdetail?.groupIcon?.url
     : item.profilePic?.url;
@@ -19,7 +21,7 @@ export default function Avatar({ item }: { item: conversation }) {
       ) : (
         <UsersRound size={24} color={darkColors.onSurface} />
       )}
-      {/* {item.online && <View style={styles.smallOnlineDot} />} */}
+      {isOnline && <View style={styles.smallOnlineDot} />}
     </View>
   );
 }

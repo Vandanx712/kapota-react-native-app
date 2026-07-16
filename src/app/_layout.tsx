@@ -8,11 +8,28 @@ import { useEffect } from "react";
 import SaplahScreen from "@/features/auth/screens/SplashScreen";
 
 export default function RootLayout() {
-  const { checkAuth, authUser, isCheckingAuth } = useAuthStore();
+  const {
+    checkAuth,
+    authUser,
+    token,
+    isCheckingAuth,
+    connectSocket,
+    disconnectSocket,
+  } = useAuthStore();
 
   useEffect(() => {
     checkAuth();
   }, []);
+
+  useEffect(() => {
+    if (!authUser) return;
+
+    connectSocket();
+
+    return () => {
+      disconnectSocket();
+    };
+  }, [authUser]);
 
   if (isCheckingAuth) {
     return <SaplahScreen />;
