@@ -50,7 +50,6 @@ export default function ChatScreen() {
         return conversations;
     }
   }, [conversations, activeFilter]);
-
   if (isConversationLoading) {
     return (
       <ScreenWrapper>
