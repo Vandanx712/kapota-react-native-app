@@ -1,20 +1,9 @@
-export type MessageStatus = "sent" | "delivered" | "read";
-
-export interface ChatMessage {
-  id: string;
-  text?: string;
-  image?: { url: string; key: string };
-  senderId: string;
-  timestamp: string;
-  status?: MessageStatus;
-  isOwn?: boolean;
-}
-
 export interface conversation {
   conversationId: string;
   name: string;
   profilePic?: { url: string; key: string };
   bgImage?: { url: string; key: string };
+  oruserId: string;
   lastmessage?: {
     text: string;
     image: { url: string; key: string };
@@ -32,5 +21,5 @@ export interface conversation {
       profilePic: { url: string; key: string };
     };
   };
-  unseenMsg?: number|null;
+  unseenMsg?: number | null;
 }
