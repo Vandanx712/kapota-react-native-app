@@ -1,3 +1,4 @@
+import { useRouter } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import {
   darkColors,
@@ -11,8 +12,18 @@ import Avatar from "./ChatAvatar";
 import { LinearGradient } from "expo-linear-gradient";
 
 export default function ConversationRow({ item }: { item: conversation }) {
+  const router = useRouter();
+
   return (
-    <Pressable style={styles.conversationRow}>
+    <Pressable
+      style={styles.conversationRow}
+      onPress={() =>
+        router.push({
+          pathname: "/chat/[conversationId]",
+          params: { conversationId: item.conversationId },
+        })
+      }
+    >
       <Avatar item={item} />
 
       <View style={styles.conversationBody}>

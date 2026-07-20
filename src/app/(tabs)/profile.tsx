@@ -1,7 +1,3 @@
-import { PagePlaceholder } from "@/shared/components/PagePlaceholder";
+import SettingsScreen from "@/features/settings/screens/SettingsScreen";
 
-const Profile = () => {
-  return <PagePlaceholder eyebrow="Profile" title="Your Space" />;
-}
-
-export default Profile;
+export default SettingsScreen;

@@ -27,7 +27,33 @@ export default function RootLayout() {
         }}
       >
         {authUser ? (
-          <Stack.Screen name="(tabs)" />
+          <>
+            <Stack.Screen name="(tabs)" />
+            <Stack.Screen
+              name="chat/[conversationId]"
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="settings/account"
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="settings/post"
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="settings/chats"
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="settings/help"
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="profile/edit"
+              options={{ headerShown: false }}
+            />
+          </>
         ) : (
           <Stack.Screen name="(auth)" />
         )}
