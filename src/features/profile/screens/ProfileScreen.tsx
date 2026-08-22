@@ -1,7 +1,15 @@
 import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { Settings } from "lucide-react-native";
+import { useRouter } from "expo-router";
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 
 import { PrimaryButton } from "@/features/auth/components/PrimaryButton";
 import { useAuthStore } from "@/features/auth/store/auth.store";
@@ -13,10 +21,15 @@ import {
 } from "@/features/profile/validation/profileSchema";
 import { splitFullName } from "@/features/profile/types/profile.types";
 import { ScreenWrapper } from "@/shared/components/ScreenWrapper";
-import { darkColors, spacing, typography } from "@/theme/tokens";
+import { useTheme } from "@/theme/ThemeProvider";
+import { spacing, typography } from "@/theme/tokens";
 
 export default function ProfileScreen() {
+  const router = useRouter();
   const { authUser, isLoading, updateProfile } = useAuthStore();
+  const { theme } = useTheme();
+  const colors = theme.colors;
+  const styles = createStyles(colors);
   const { firstname, lastname } = splitFullName(authUser?.fullname);
 
   const [profileImageUri, setProfileImageUri] = useState<string | null>(
@@ -48,7 +61,6 @@ export default function ProfileScreen() {
       email: authUser.email ?? "",
     });
 
-    setProfileImageUri(authUser.profilePic?.url ?? null);
   }, [authUser, reset]);
 
   const onSubmit = (data: ProfileFormData) => {
@@ -67,8 +79,11 @@ export default function ProfileScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.header}>
-          <Text style={styles.eyebrow}>Profile</Text>
-          <Text style={styles.title}>Your Space</Text>
+          <View style={styles.headerTop}>
+            <View style={styles.headerCopy}>
+              <Text style={styles.eyebrow}>Profile</Text>
+            </View>
+          </View>
           <Text style={styles.subtitle}>
             Keep your details up to date so friends can find you.
           </Text>
@@ -136,7 +151,8 @@ export default function ProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ReturnType<typeof useTheme>["theme"]["colors"]) =>
+  StyleSheet.create({
   scroll: {
     flex: 1,
   },
@@ -147,27 +163,50 @@ const styles = StyleSheet.create({
   header: {
     marginBottom: spacing.lg,
   },
+  headerCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  headerTop: {
+    alignItems: "flex-start",
+    flexDirection: "row",
+    gap: spacing.sm,
+    justifyContent: "space-between",
+  },
   eyebrow: {
     ...typography.labelMd,
-    color: darkColors.primary,
+    color: colors.primary,
     marginBottom: spacing.xs,
     textTransform: "uppercase",
   },
   title: {
     ...typography.headlineLgMobile,
-    color: darkColors.onSurface,
+    color: colors.onSurface,
     marginBottom: spacing.xs,
   },
   subtitle: {
     ...typography.bodySm,
-    color: darkColors.onSurfaceVariant,
+    color: colors.onSurfaceVariant,
     lineHeight: 22,
   },
   card: {
-    backgroundColor: darkColors.surfaceContainer,
-    borderColor: darkColors.outlineVariant,
+    backgroundColor: colors.surfaceContainer,
+    borderColor: colors.outlineVariant,
     borderRadius: 24,
     borderWidth: 1,
     padding: spacing.lg,
   },
-});
+  pressed: {
+    opacity: 0.7,
+  },
+  settingsButton: {
+    alignItems: "center",
+    backgroundColor: colors.surfaceContainerHigh,
+    borderColor: colors.outlineVariant,
+    borderRadius: 18,
+    borderWidth: 1,
+    height: 42,
+    justifyContent: "center",
+    width: 42,
+  },
+  });

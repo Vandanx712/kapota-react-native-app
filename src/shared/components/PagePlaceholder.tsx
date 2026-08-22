@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from "react-native";
 
-import { colors, spacing, typography } from "@/theme/tokens";
+import { useTheme } from "@/theme/ThemeProvider";
+import { spacing, typography } from "@/theme/tokens";
 import { ScreenWrapper } from "./ScreenWrapper";
 
 type Props = {
@@ -9,6 +10,10 @@ type Props = {
 };
 
 export function PagePlaceholder({ eyebrow, title }: Props) {
+  const { theme } = useTheme();
+  const colors = theme.colors;
+  const styles = createStyles(colors);
+
   return (
     <ScreenWrapper>
       <View style={styles.container}>
@@ -19,7 +24,8 @@ export function PagePlaceholder({ eyebrow, title }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ReturnType<typeof useTheme>["theme"]["colors"]) =>
+  StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: "center",
@@ -34,4 +40,4 @@ const styles = StyleSheet.create({
     ...typography.headlineLg,
     color: colors.onSurface,
   },
-});
+  });

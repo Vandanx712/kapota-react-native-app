@@ -4,12 +4,12 @@ import { Camera } from "lucide-react-native";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 
 import {
-  darkColors,
   elevation,
   radius,
   spacing,
   typography,
 } from "@/theme/tokens";
+import { useTheme } from "@/theme/ThemeProvider";
 
 type Props = {
   imageUri?: string | null;
@@ -18,6 +18,9 @@ type Props = {
 };
 
 export default function ProfileAvatar({ imageUri, name, onImageChange }: Props) {
+  const { theme } = useTheme();
+  const colors = theme.colors;
+  const styles = createStyles(colors);
   const initial = name?.charAt(0).toUpperCase() ?? "?";
 
   const pickImage = async () => {
@@ -39,7 +42,7 @@ export default function ProfileAvatar({ imageUri, name, onImageChange }: Props) 
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={[darkColors.primaryContainer, "#725EFF"]}
+        colors={[colors.primaryContainer, colors.primary]}
         style={styles.ring}
       >
         <Pressable
@@ -55,7 +58,7 @@ export default function ProfileAvatar({ imageUri, name, onImageChange }: Props) 
           )}
 
           <View style={styles.editBadge}>
-            <Camera size={16} color={darkColors.onSurface} strokeWidth={2.4} />
+            <Camera size={16} color={colors.onPrimary} strokeWidth={2.4} />
           </View>
         </Pressable>
       </LinearGradient>
@@ -65,7 +68,8 @@ export default function ProfileAvatar({ imageUri, name, onImageChange }: Props) 
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ReturnType<typeof useTheme>["theme"]["colors"]) =>
+  StyleSheet.create({
   container: {
     alignItems: "center",
     marginBottom: spacing.lg,
@@ -79,7 +83,7 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   avatar: {
-    backgroundColor: darkColors.surfaceContainerHigh,
+    backgroundColor: colors.surfaceContainerHigh,
     borderRadius: radius.full,
     height: 112,
     width: 112,
@@ -90,14 +94,14 @@ const styles = StyleSheet.create({
   },
   initial: {
     ...typography.headlineLg,
-    color: darkColors.onSurface,
+    color: colors.onSurface,
     fontSize: 40,
     fontWeight: "700",
   },
   editBadge: {
     alignItems: "center",
-    backgroundColor: darkColors.primaryContainer,
-    borderColor: darkColors.background,
+    backgroundColor: colors.primaryContainer,
+    borderColor: colors.background,
     borderRadius: radius.full,
     borderWidth: 3,
     bottom: 4,
@@ -110,10 +114,10 @@ const styles = StyleSheet.create({
   },
   hint: {
     ...typography.bodySm,
-    color: darkColors.outline,
+    color: colors.outline,
     marginTop: spacing.xs,
   },
   pressed: {
     opacity: 0.85,
   },
-});
+  });

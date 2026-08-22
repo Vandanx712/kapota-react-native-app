@@ -1,12 +1,15 @@
 import {
   createContext,
+  useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
 } from "react";
-import { useColorScheme } from "react-native";
-import type { Theme, ThemeMode } from "../types/theme";
+
+import { secureStorage } from "@/services/storage/secureStorage";
+import type { Theme, ThemeName } from "../types/theme";
 import {
   componentTypography,
   elevation,
@@ -14,28 +17,63 @@ import {
   radius,
   spacing,
   splash,
+  themeNames,
   themes,
   typography,
 } from "./tokens";
 
 interface ThemeContextValue {
   theme: Theme;
-  setMode: (mode: ThemeMode) => void;
-  toggle: () => void;
+  themeName: ThemeName;
+  isHydrated: boolean;
+  setTheme: (name: ThemeName) => Promise<void>;
+  setMode: (name: ThemeName) => Promise<void>;
+  toggle: () => Promise<void>;
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
+function isThemeName(value: string | null): value is ThemeName {
+  return Boolean(value && themeNames.includes(value as ThemeName));
+}
+
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const system = useColorScheme();
-  const [mode, setMode] = useState<ThemeMode>(
-    system === "light" ? "light" : "dark",
-  );
+  const [themeName, setThemeName] = useState<ThemeName>("default");
+  const [isHydrated, setIsHydrated] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+
+    secureStorage
+      .getTheme()
+      .then((stored) => {
+        if (mounted && isThemeName(stored)) setThemeName(stored);
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (mounted) setIsHydrated(true);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const setTheme = useCallback(async (name: ThemeName) => {
+    setThemeName(name);
+    await secureStorage.setTheme(name);
+  }, []);
+
+  const toggle = useCallback(async () => {
+    await setTheme(themeName === "default" ? "dark" : "default");
+  }, [setTheme, themeName]);
 
   const value = useMemo<ThemeContextValue>(() => {
+    const selected = themes[themeName];
     const theme = {
-      mode,
-      colors: themes[mode].colors,
+      mode: selected.mode,
+      name: selected.name,
+      colors: selected.colors,
       componentTypography,
       elevation,
       fonts,
@@ -44,16 +82,18 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       splash,
       typography,
     } as Theme;
+
     return {
       theme,
-      setMode,
-      toggle: () => setMode((m) => (m === "dark" ? "light" : "dark")),
+      themeName,
+      isHydrated,
+      setTheme,
+      setMode: setTheme,
+      toggle,
     };
-  }, [mode]);
+  }, [isHydrated, setTheme, themeName, toggle]);
 
-  return (
-    <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
-  );
+  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }
 
 export function useTheme(): ThemeContextValue {

@@ -15,9 +15,14 @@ import {
   SUPPORT_EMAIL,
 } from "@/features/settings/constants/settings.constants";
 import { showErrorToast, showSuccessToast } from "@/utils/toast";
-import { darkColors, radius, spacing, typography } from "@/theme/tokens";
+import { useTheme } from "@/theme/ThemeProvider";
+import { radius, spacing, typography } from "@/theme/tokens";
 
 export default function HelpSectionScreen() {
+  const { theme } = useTheme();
+  const colors = theme.colors;
+  const styles = createStyles(colors);
+
   const handleEmailSupport = () => {
     Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=Kapota support`);
   };
@@ -68,7 +73,7 @@ export default function HelpSectionScreen() {
           <View style={styles.card}>
             <View style={styles.cardHeader}>
               <View style={styles.iconWrap}>
-                <CircleHelp size={20} color={darkColors.primaryContainer} />
+                <CircleHelp size={20} color={colors.primaryContainer} />
               </View>
               <View style={styles.cardCopy}>
                 <Text style={styles.cardTitle}>Help centre</Text>
@@ -89,7 +94,7 @@ export default function HelpSectionScreen() {
           <View style={styles.card}>
             <View style={styles.cardHeader}>
               <View style={[styles.iconWrap, styles.secondaryIcon]}>
-                <MessageCircle size={20} color={darkColors.secondary} />
+                <MessageCircle size={20} color={colors.secondary} />
               </View>
               <View style={styles.cardCopy}>
                 <Text style={styles.cardTitle}>Feedback and support</Text>
@@ -121,7 +126,7 @@ export default function HelpSectionScreen() {
           <View style={styles.card}>
             <View style={styles.cardHeader}>
               <View style={[styles.iconWrap, styles.accentIcon]}>
-                <Lock size={20} color={darkColors.accent} />
+                <Lock size={20} color={colors.accent} />
               </View>
               <View style={styles.cardCopy}>
                 <Text style={styles.cardTitle}>Privacy policy</Text>
@@ -167,16 +172,17 @@ export default function HelpSectionScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ReturnType<typeof useTheme>["theme"]["colors"]) =>
+  StyleSheet.create({
   screen: {
-    backgroundColor: darkColors.background,
+    backgroundColor: colors.background,
     flex: 1,
   },
   content: {
     paddingBottom: spacing.xl,
   },
   heroCard: {
-    backgroundColor: darkColors.surfaceContainer,
+    backgroundColor: colors.surfaceContainer,
     borderColor: "rgba(255,255,255,0.05)",
     borderRadius: radius.xl,
     borderWidth: 1,
@@ -185,11 +191,11 @@ const styles = StyleSheet.create({
   },
   heroTitle: {
     ...typography.titleMd,
-    color: darkColors.onSurface,
+    color: colors.onSurface,
   },
   heroText: {
     ...typography.bodySm,
-    color: darkColors.outline,
+    color: colors.outline,
     lineHeight: 22,
     marginTop: spacing.xs,
   },
@@ -198,7 +204,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
   },
   card: {
-    backgroundColor: darkColors.surfaceContainer,
+    backgroundColor: colors.surfaceContainer,
     borderColor: "rgba(255,255,255,0.05)",
     borderRadius: radius.xl,
     borderWidth: 1,
@@ -229,65 +235,65 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     ...typography.bodyLg,
-    color: darkColors.onSurface,
+    color: colors.onSurface,
     fontWeight: "700",
   },
   cardDescription: {
     ...typography.bodySm,
-    color: darkColors.outline,
+    color: colors.outline,
     lineHeight: 20,
     marginTop: 4,
   },
   topicCard: {
-    backgroundColor: darkColors.surfaceContainerHigh,
+    backgroundColor: colors.surfaceContainerHigh,
     borderRadius: radius.lg,
     marginBottom: spacing.xs,
     padding: spacing.sm,
   },
   topicTitle: {
     ...typography.bodyLg,
-    color: darkColors.onSurface,
+    color: colors.onSurface,
     fontWeight: "600",
   },
   topicDescription: {
     ...typography.bodySm,
-    color: darkColors.outline,
+    color: colors.outline,
     lineHeight: 20,
     marginTop: 4,
   },
   tipBox: {
-    backgroundColor: darkColors.surfaceContainerHigh,
+    backgroundColor: colors.surfaceContainerHigh,
     borderRadius: radius.xl,
     marginBottom: spacing.sm,
     padding: spacing.sm,
   },
   tipTitle: {
     ...typography.bodySm,
-    color: darkColors.onSurface,
+    color: colors.onSurface,
     fontWeight: "600",
     marginBottom: spacing.xs,
   },
   tipItem: {
     ...typography.bodySm,
-    color: darkColors.outline,
+    color: colors.outline,
     lineHeight: 20,
   },
   privacyGrid: {
     gap: spacing.xs,
   },
   privacyItem: {
-    backgroundColor: darkColors.surfaceContainerHigh,
+    backgroundColor: colors.surfaceContainerHigh,
     borderRadius: radius.lg,
     padding: spacing.sm,
   },
   privacyTitle: {
     ...typography.bodySm,
-    color: darkColors.onSurface,
+    color: colors.onSurface,
     fontWeight: "600",
   },
   privacyText: {
     ...typography.bodySm,
-    color: darkColors.outline,
+    color: colors.outline,
     lineHeight: 20,
     marginTop: 4,
   },
@@ -301,7 +307,7 @@ const styles = StyleSheet.create({
   },
   emailNoteText: {
     ...typography.bodySm,
-    color: darkColors.outline,
+    color: colors.outline,
     lineHeight: 20,
   },
-});
+  });

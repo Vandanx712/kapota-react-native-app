@@ -17,9 +17,10 @@ import {
 } from "react-native";
 
 import { useAuthStore } from "@/features/auth/store/auth.store";
+import { useTheme } from "@/theme/ThemeProvider";
 import SettingSwitchRow from "./SettingSwitchRow";
 import type { UserPost } from "../types/settings.types";
-import { darkColors, radius, spacing, typography } from "@/theme/tokens";
+import { radius, spacing, typography } from "@/theme/tokens";
 
 type Props = {
   post: UserPost;
@@ -38,6 +39,9 @@ export default function PostCard({
   onDelete,
 }: Props) {
   const { authUser } = useAuthStore();
+  const { theme } = useTheme();
+  const colors = theme.colors;
+  const styles = createStyles(colors);
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
@@ -47,7 +51,7 @@ export default function PostCard({
           <Text style={styles.author}>{authUser?.fullname}</Text>
           <View style={styles.metaRow}>
             <View style={styles.metaBadge}>
-              <MapPin size={12} color={darkColors.outline} />
+              <MapPin size={12} color={colors.outline} />
               <Text style={styles.metaText}>
                 {post.location?.name || "No location"}
               </Text>
@@ -62,7 +66,7 @@ export default function PostCard({
           onPress={() => setMenuOpen(true)}
           style={({ pressed }) => [styles.menuButton, pressed && styles.pressed]}
         >
-          <EllipsisVertical size={18} color={darkColors.outline} />
+          <EllipsisVertical size={18} color={colors.outline} />
         </Pressable>
       </View>
 
@@ -83,12 +87,12 @@ export default function PostCard({
 
       <View style={styles.statsRow}>
         <View style={styles.stat}>
-          <Heart size={16} color={darkColors.accent} />
+          <Heart size={16} color={colors.accent} />
           <Text style={styles.statLabel}>Like</Text>
           <Text style={styles.statValue}>{post.likesCount ?? 0}</Text>
         </View>
         <View style={styles.stat}>
-          <Share2 size={16} color={darkColors.primaryContainer} />
+          <Share2 size={16} color={colors.primaryContainer} />
           <Text style={styles.statLabel}>Shared</Text>
           <Text style={styles.statValue}>{post.sharesCount ?? 0}</Text>
         </View>
@@ -99,7 +103,7 @@ export default function PostCard({
         {post.disableShare && <Text style={styles.badge}>Share disabled</Text>}
         {post.isArchived && (
           <View style={styles.archiveBadge}>
-            <Archive size={12} color={darkColors.outline} />
+            <Archive size={12} color={colors.outline} />
             <Text style={styles.badge}>Archived</Text>
           </View>
         )}
@@ -152,7 +156,7 @@ export default function PostCard({
                 isUpdating && styles.disabled,
               ]}
             >
-              <Trash2 size={16} color={darkColors.error} />
+              <Trash2 size={16} color={colors.error} />
               <Text style={styles.deleteText}>Delete post</Text>
             </Pressable>
           </Pressable>
@@ -162,10 +166,11 @@ export default function PostCard({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ReturnType<typeof useTheme>["theme"]["colors"]) =>
+  StyleSheet.create({
   card: {
-    backgroundColor: darkColors.surfaceContainer,
-    borderColor: "rgba(255,255,255,0.05)",
+    backgroundColor: colors.surfaceContainer,
+    borderColor: colors.outlineVariant,
     borderRadius: radius.xl,
     borderWidth: 1,
     marginBottom: spacing.md,
@@ -183,7 +188,7 @@ const styles = StyleSheet.create({
   },
   author: {
     ...typography.bodyLg,
-    color: darkColors.onSurface,
+    color: colors.onSurface,
     fontWeight: "700",
   },
   metaRow: {
@@ -200,22 +205,22 @@ const styles = StyleSheet.create({
   },
   metaText: {
     ...typography.bodySm,
-    color: darkColors.outline,
+    color: colors.outline,
   },
   dateText: {
     ...typography.bodySm,
-    color: darkColors.outline,
+    color: colors.outline,
   },
   menuButton: {
     alignItems: "center",
-    backgroundColor: darkColors.surfaceContainerHigh,
+    backgroundColor: colors.surfaceContainerHigh,
     borderRadius: radius.full,
     height: 36,
     justifyContent: "center",
     width: 36,
   },
   image: {
-    backgroundColor: darkColors.surfaceContainerHigh,
+    backgroundColor: colors.surfaceContainerHigh,
     borderRadius: radius.xl,
     height: 260,
     marginBottom: spacing.sm,
@@ -226,12 +231,12 @@ const styles = StyleSheet.create({
   },
   captionLabel: {
     ...typography.labelMd,
-    color: darkColors.outline,
+    color: colors.outline,
     marginBottom: 4,
   },
   caption: {
     ...typography.bodySm,
-    color: darkColors.onSurfaceVariant,
+    color: colors.onSurfaceVariant,
     lineHeight: 20,
   },
   statsRow: {
@@ -241,7 +246,7 @@ const styles = StyleSheet.create({
   },
   stat: {
     alignItems: "center",
-    backgroundColor: darkColors.surfaceContainerHigh,
+    backgroundColor: colors.surfaceContainerHigh,
     borderRadius: radius.lg,
     flex: 1,
     flexDirection: "row",
@@ -250,12 +255,12 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     ...typography.bodySm,
-    color: darkColors.outline,
+    color: colors.outline,
     flex: 1,
   },
   statValue: {
     ...typography.bodyLg,
-    color: darkColors.onSurface,
+    color: colors.onSurface,
     fontWeight: "700",
   },
   badges: {
@@ -265,15 +270,15 @@ const styles = StyleSheet.create({
   },
   badge: {
     ...typography.labelMd,
-    backgroundColor: darkColors.surfaceContainerHigh,
+    backgroundColor: colors.surfaceContainerHigh,
     borderRadius: radius.full,
-    color: darkColors.outline,
+    color: colors.outline,
     overflow: "hidden",
     paddingHorizontal: 10,
     paddingVertical: 4,
   },
   activeBadge: {
-    color: darkColors.success,
+    color: colors.success,
   },
   archiveBadge: {
     alignItems: "center",
@@ -286,7 +291,7 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
   },
   sheet: {
-    backgroundColor: darkColors.surfaceContainer,
+    backgroundColor: colors.surfaceContainer,
     borderTopLeftRadius: radius.xl,
     borderTopRightRadius: radius.xl,
     padding: spacing.md,
@@ -294,7 +299,7 @@ const styles = StyleSheet.create({
   },
   sheetTitle: {
     ...typography.titleMd,
-    color: darkColors.onSurface,
+    color: colors.onSurface,
     marginBottom: spacing.sm,
   },
   deleteButton: {
@@ -310,7 +315,7 @@ const styles = StyleSheet.create({
   },
   deleteText: {
     ...typography.bodySm,
-    color: darkColors.error,
+    color: colors.error,
     fontWeight: "700",
   },
   pressed: {
@@ -319,4 +324,4 @@ const styles = StyleSheet.create({
   disabled: {
     opacity: 0.45,
   },
-});
+  });

@@ -1,5 +1,4 @@
 import type {
-  darkColors,
   elevation,
   fonts,
   radius,
@@ -7,14 +6,28 @@ import type {
   spacing,
   splash,
   typography,
+  ThemeColorShape,
 } from "@/theme/tokens";
 
-export type ThemeMode = "light" | "dark";
+export type ThemeName =
+  | "default"
+  | "dark"
+  | "cupcake"
+  | "coffee"
+  | "luxury"
+  | "valentine"
+  | "emerald"
+  | "corporate"
+  | "nord"
+  | "sunset";
 
-export type ThemeColors = typeof darkColors;
+export type ThemeMode = ThemeName;
+
+export type ThemeColors = ThemeColorShape;
 
 export type Theme = {
   mode: ThemeMode;
+  name: ThemeName;
   colors: ThemeColors;
   componentTypography: typeof componentTypography;
   elevation: typeof elevation;

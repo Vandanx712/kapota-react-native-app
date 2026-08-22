@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from "react-native";
 
-import { darkColors, radius, spacing, typography } from "@/theme/tokens";
+import { useTheme } from "@/theme/ThemeProvider";
+import { radius, spacing, typography } from "@/theme/tokens";
 
 type Props = {
   title: string;
@@ -9,6 +10,10 @@ type Props = {
 };
 
 export default function StatCard({ title, value, description }: Props) {
+  const { theme } = useTheme();
+  const colors = theme.colors;
+  const styles = createStyles(colors);
+
   return (
     <View style={styles.card}>
       <Text style={styles.title}>{title}</Text>
@@ -18,29 +23,30 @@ export default function StatCard({ title, value, description }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: darkColors.surfaceContainer,
-    borderColor: "rgba(255,255,255,0.05)",
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    flex: 1,
-    minWidth: "46%",
-    padding: spacing.sm,
-  },
-  title: {
-    ...typography.labelMd,
-    color: darkColors.outline,
-    textTransform: "uppercase",
-  },
-  value: {
-    ...typography.headlineLgMobile,
-    color: darkColors.onSurface,
-    marginTop: spacing.xs,
-  },
-  description: {
-    ...typography.bodySm,
-    color: darkColors.outline,
-    marginTop: 4,
-  },
-});
+const createStyles = (colors: ReturnType<typeof useTheme>["theme"]["colors"]) =>
+  StyleSheet.create({
+    card: {
+      backgroundColor: colors.surfaceContainer,
+      borderColor: colors.outlineVariant,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      flex: 1,
+      minWidth: "46%",
+      padding: spacing.sm,
+    },
+    title: {
+      ...typography.labelMd,
+      color: colors.outline,
+      textTransform: "uppercase",
+    },
+    value: {
+      ...typography.headlineLgMobile,
+      color: colors.onSurface,
+      marginTop: spacing.xs,
+    },
+    description: {
+      ...typography.bodySm,
+      color: colors.outline,
+      marginTop: 4,
+    },
+  });

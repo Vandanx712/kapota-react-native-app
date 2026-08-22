@@ -1,13 +1,17 @@
-import { ChevronRight } from "lucide-react-native";
+import { ChevronRight, Pencil } from "lucide-react-native";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 
 import { useAuthStore } from "@/features/auth/store/auth.store";
-import { darkColors, radius, spacing, typography } from "@/theme/tokens";
+import { useTheme } from "@/theme/ThemeProvider";
+import { radius, spacing, typography } from "@/theme/tokens";
 
 export default function SettingsProfileHeader() {
   const router = useRouter();
   const { authUser } = useAuthStore();
+  const { theme } = useTheme();
+  const colors = theme.colors;
+  const styles = createStyles(colors);
 
   return (
     <Pressable
@@ -28,58 +32,61 @@ export default function SettingsProfileHeader() {
         <Text numberOfLines={1} style={styles.name}>
           {authUser?.fullname ?? "Your profile"}
         </Text>
-        <Text numberOfLines={2} style={styles.bio}>
-          {authUser?.bio || "Edit your profile details"}
+        <Text numberOfLines={1} style={styles.bio}>
+          {authUser?.bio || "Add a short bio to your profile"}
         </Text>
       </View>
 
-      <ChevronRight size={18} color={darkColors.outline} strokeWidth={2.4} />
+      <ChevronRight size={19} color={colors.outline} strokeWidth={2.4} />
     </Pressable>
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    alignItems: "center",
-    backgroundColor: darkColors.surfaceContainer,
-    borderColor: "rgba(255,255,255,0.06)",
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    flexDirection: "row",
-    gap: spacing.sm,
-    marginBottom: spacing.md,
-    padding: spacing.sm,
-  },
-  avatar: {
-    backgroundColor: darkColors.surfaceContainerHigh,
-    borderRadius: radius.full,
-    height: 64,
-    width: 64,
-  },
-  avatarFallback: {
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  initial: {
-    ...typography.headlineLgMobile,
-    color: darkColors.onSurface,
-    fontWeight: "700",
-  },
-  body: {
-    flex: 1,
-    minWidth: 0,
-  },
-  name: {
-    ...typography.bodyLg,
-    color: darkColors.onSurface,
-    fontWeight: "700",
-  },
-  bio: {
-    ...typography.bodySm,
-    color: darkColors.outline,
-    marginTop: 4,
-  },
-  pressed: {
-    opacity: 0.85,
-  },
-});
+const createStyles = (colors: ReturnType<typeof useTheme>["theme"]["colors"]) =>
+  StyleSheet.create({
+    card: {
+      alignItems: "center",
+      backgroundColor: colors.surfaceContainer,
+      borderColor: colors.outlineVariant,
+      borderRadius: radius.lg,
+      borderWidth: 1,
+      flexDirection: "row",
+      gap: spacing.sm,
+      marginBottom: spacing.lg,
+      padding: spacing.sm,
+    },
+    avatar: {
+      backgroundColor: colors.surfaceContainerHigh,
+      borderRadius: radius.md,
+      height: 72,
+      width: 72,
+    },
+    avatarFallback: {
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    initial: {
+      ...typography.headlineLgMobile,
+      color: colors.primaryContainer,
+      fontSize: 30,
+      fontWeight: "800",
+    },
+    body: {
+      flex: 1,
+      minWidth: 0,
+    },
+    name: {
+      ...typography.titleMd,
+      color: colors.onSurface,
+      fontSize: 19,
+      fontWeight: "800",
+    },
+    bio: {
+      ...typography.bodySm,
+      color: colors.onSurfaceVariant,
+      marginTop: 2,
+    },
+    pressed: {
+      opacity: 0.8,
+    },
+  });

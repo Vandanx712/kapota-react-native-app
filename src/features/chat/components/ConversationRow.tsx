@@ -1,30 +1,54 @@
+import dayjs from "dayjs";
+import { CheckCheck } from "lucide-react-native";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import {
-  darkColors,
   elevation,
   radius,
   spacing,
   typography,
 } from "@/theme/tokens";
+import { useTheme } from "@/theme/ThemeProvider";
 import { conversation } from "../types/chat.types";
 import Avatar from "./ChatAvatar";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAuthStore } from "@/features/auth/store/auth.store";
 import { useChatStore } from "../store/chat.store";
 
-export default function ConversationRow({ item }: { item: conversation }) {
+type Props = {
+  item: conversation;
+  onPress: () => void;
+};
+
+export default function ConversationRow({ item, onPress }: Props) {
+  const { theme } = useTheme();
+  const colors = theme.colors;
+  const styles = createStyles(colors);
   const { onlineUsers, authUser } = useAuthStore();
   const { typing } = useChatStore();
   const onlineUserSet = new Set(onlineUsers);
 
   const isOnline = item.isgroup
-    ? Object.entries(item.groupdetail?.membersDetail).filter(
-        ([id]) => id !== authUser._id && onlineUserSet.has(id),
-      ).length > 0
-    : onlineUserSet.has(item?.oruserId);
+    ? Object.keys(item.groupdetail?.membersDetail ?? {}).some(
+        (id) => id !== authUser?._id && onlineUserSet.has(id),
+      )
+    : Boolean(item.oruserId && onlineUserSet.has(item.oruserId));
+  const lastMessage = item.lastmessage;
+  const isOwnLastMessage = lastMessage?.sender === authUser?._id;
+  const time = lastMessage?.createdAt
+    ? dayjs(lastMessage.createdAt).isSame(dayjs(), "day")
+      ? dayjs(lastMessage.createdAt).format("h:mm A")
+      : dayjs(lastMessage.createdAt).format("MMM D")
+    : "";
 
   return (
-    <Pressable style={styles.conversationRow}>
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.conversationRow,
+        pressed && styles.pressed,
+      ]}
+    >
       <Avatar item={item} isOnline={isOnline} />
 
       <View style={styles.conversationBody}>
@@ -33,34 +57,32 @@ export default function ConversationRow({ item }: { item: conversation }) {
             {item.isgroup ? item.groupdetail?.groupname : item?.name}
           </Text>
           <Text numberOfLines={1} style={styles.timeText}>
-            {/* {item.time} */}
+            {time}
           </Text>
         </View>
 
         <View style={styles.previewRow}>
-          {/* {item.delivered && (
+          {isOwnLastMessage && (
             <CheckCheck
               size={18}
-              color={darkColors.primaryContainer}
+              color={colors.primaryContainer}
               strokeWidth={2.4}
             />
-          )} */}
-          {/* {item.sender && (
-            <Text style={styles.senderText}>{item.sender}: </Text>
-          )} */}
+          )}
           <Text numberOfLines={1} style={styles.messageText}>
-            {typing?.receiverId == item.conversationId &&
-            typing?.userId !== authUser._id
+            {typing?.receiverId === item.conversationId &&
+            typing?.userId !== authUser?._id
               ? item.isgroup
-                ? `${item.groupdetail?.membersDetail[typing.userId].fullname} is typing...`
+                ? `${item.groupdetail?.membersDetail?.[typing.userId]?.fullname ?? "Someone"} is typing...`
                 : "typing..."
               : item.lastmessage?.deletedForEveryone
-                ? authUser._id == item.lastmessage.sender
+                ? authUser?._id === item.lastmessage.sender
                   ? "You deleted this message"
                   : "This message was deleted"
                 : item.lastmessage?.image
                   ? "Image"
-                  : item.lastmessage?.deletedFor?.includes(authUser._id)
+                  : authUser?._id &&
+                      item.lastmessage?.deletedFor?.includes(authUser._id)
                     ? ""
                     : item.lastmessage?.text || ""}
           </Text>
@@ -69,7 +91,7 @@ export default function ConversationRow({ item }: { item: conversation }) {
 
       {!!item?.unseenMsg && (
         <LinearGradient
-          colors={[darkColors.primaryContainer, "#725EFF"]}
+          colors={[colors.primaryContainer, colors.primary]}
           style={styles.unreadBadge}
         >
           <Text style={styles.unreadText}>{item?.unseenMsg}</Text>
@@ -79,11 +101,16 @@ export default function ConversationRow({ item }: { item: conversation }) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ReturnType<typeof useTheme>["theme"]["colors"]) =>
+  StyleSheet.create({
   conversationRow: {
     alignItems: "center",
     flexDirection: "row",
     minHeight: 76,
+    paddingHorizontal: spacing.xs,
+  },
+  pressed: {
+    opacity: 0.72,
   },
   conversationBody: {
     flex: 1,
@@ -99,27 +126,28 @@ const styles = StyleSheet.create({
     marginBottom: 7,
   },
   conversationName: {
-    color: darkColors.onSurface,
+    color: colors.onSurface,
     flex: 1,
     fontSize: 15,
     fontWeight: "800",
   },
   timeText: {
     ...typography.bodySm,
-    color: darkColors.outline,
+    color: colors.outline,
   },
   previewRow: {
     alignItems: "center",
     flexDirection: "row",
     minWidth: 0,
+    gap: 5,
   },
   senderText: {
     ...typography.bodySm,
-    color: darkColors.primaryContainer,
+    color: colors.primaryContainer,
   },
   messageText: {
     ...typography.bodySm,
-    color: darkColors.outline,
+    color: colors.outline,
     flex: 1,
   },
   unreadBadge: {
@@ -133,6 +161,6 @@ const styles = StyleSheet.create({
   },
   unreadText: {
     ...typography.bodySm,
-    color: darkColors.onSurface,
+    color: colors.onSurface,
   },
-});
+  });

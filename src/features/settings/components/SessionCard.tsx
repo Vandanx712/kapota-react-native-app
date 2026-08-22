@@ -9,7 +9,8 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import type { ActiveSession } from "../types/settings.types";
 import { formatSessionTime } from "../utils/settings.utils";
-import { darkColors, radius, spacing, typography } from "@/theme/tokens";
+import { useTheme } from "@/theme/ThemeProvider";
+import { radius, spacing, typography } from "@/theme/tokens";
 
 type Props = {
   session: ActiveSession;
@@ -24,6 +25,9 @@ export default function SessionCard({
   isActionLoading,
   onLogout,
 }: Props) {
+  const { theme } = useTheme();
+  const colors = theme.colors;
+  const styles = createStyles(colors);
   const isHighlighted = session.isCurrent || session.isPrimaryDevice;
 
   return (
@@ -37,7 +41,7 @@ export default function SessionCard({
         <View style={[styles.iconWrap, isHighlighted && styles.iconWrapActive]}>
           <Laptop2
             size={20}
-            color={isHighlighted ? darkColors.primaryContainer : darkColors.outline}
+            color={isHighlighted ? colors.primaryContainer : colors.outline}
             strokeWidth={2.2}
           />
         </View>
@@ -61,7 +65,7 @@ export default function SessionCard({
               (!canManageDevices || isActionLoading) && styles.disabled,
             ]}
           >
-            <LogOut size={14} color={darkColors.error} strokeWidth={2.4} />
+            <LogOut size={14} color={colors.error} strokeWidth={2.4} />
             <Text style={styles.logoutText}>Log out</Text>
           </Pressable>
         )}
@@ -70,7 +74,7 @@ export default function SessionCard({
       <View style={styles.statsGrid}>
         <View style={styles.statItem}>
           <View style={styles.statLabelRow}>
-            <Clock3 size={12} color={darkColors.outline} />
+            <Clock3 size={12} color={colors.outline} />
             <Text style={styles.statLabel}>Last active</Text>
           </View>
           <Text style={styles.statValue}>
@@ -80,7 +84,7 @@ export default function SessionCard({
 
         <View style={styles.statItem}>
           <View style={styles.statLabelRow}>
-            <ShieldCheck size={12} color={darkColors.outline} />
+            <ShieldCheck size={12} color={colors.outline} />
             <Text style={styles.statLabel}>Logged in</Text>
           </View>
           <Text style={styles.statValue}>
@@ -90,7 +94,7 @@ export default function SessionCard({
 
         <View style={[styles.statItem, styles.statItemFull]}>
           <View style={styles.statLabelRow}>
-            <MapPin size={12} color={darkColors.outline} />
+            <MapPin size={12} color={colors.outline} />
             <Text style={styles.statLabel}>Network</Text>
           </View>
           <Text numberOfLines={1} style={styles.statValue}>
@@ -102,10 +106,11 @@ export default function SessionCard({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ReturnType<typeof useTheme>["theme"]["colors"]) =>
+  StyleSheet.create({
   card: {
-    backgroundColor: darkColors.surfaceContainer,
-    borderColor: "rgba(255,255,255,0.05)",
+    backgroundColor: colors.surfaceContainer,
+    borderColor: colors.outlineVariant,
     borderRadius: radius.xl,
     borderWidth: 1,
     marginBottom: spacing.sm,
@@ -123,7 +128,7 @@ const styles = StyleSheet.create({
   },
   iconWrap: {
     alignItems: "center",
-    backgroundColor: darkColors.surfaceContainerHigh,
+    backgroundColor: colors.surfaceContainerHigh,
     borderRadius: radius.lg,
     height: 44,
     justifyContent: "center",
@@ -138,12 +143,12 @@ const styles = StyleSheet.create({
   },
   deviceName: {
     ...typography.bodyLg,
-    color: darkColors.onSurface,
+    color: colors.onSurface,
     fontWeight: "700",
   },
   badge: {
     ...typography.labelMd,
-    color: darkColors.success,
+    color: colors.success,
     marginTop: 2,
   },
   logoutButton: {
@@ -158,7 +163,7 @@ const styles = StyleSheet.create({
   },
   logoutText: {
     ...typography.bodySm,
-    color: darkColors.error,
+    color: colors.error,
     fontWeight: "600",
   },
   statsGrid: {
@@ -185,12 +190,12 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     ...typography.labelMd,
-    color: darkColors.outline,
+    color: colors.outline,
     fontSize: 10,
   },
   statValue: {
     ...typography.bodySm,
-    color: darkColors.onSurfaceVariant,
+    color: colors.onSurfaceVariant,
     fontWeight: "600",
     marginTop: 4,
   },
@@ -200,4 +205,4 @@ const styles = StyleSheet.create({
   disabled: {
     opacity: 0.45,
   },
-});
+  });

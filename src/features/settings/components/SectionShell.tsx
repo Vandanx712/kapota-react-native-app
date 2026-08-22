@@ -4,7 +4,8 @@ import type { ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 
-import { darkColors, radius, spacing, typography } from "@/theme/tokens";
+import { useTheme } from "@/theme/ThemeProvider";
+import { radius, spacing, typography } from "@/theme/tokens";
 
 type Props = {
   icon: LucideIcon;
@@ -20,6 +21,9 @@ export default function SectionShell({
   children,
 }: Props) {
   const router = useRouter();
+  const { theme } = useTheme();
+  const colors = theme.colors;
+  const styles = createStyles(colors);
 
   return (
     <View style={styles.container}>
@@ -27,7 +31,7 @@ export default function SectionShell({
         <View style={styles.iconWrap}>
           <Icon
             size={22}
-            color={darkColors.primaryContainer}
+            color={colors.primaryContainer}
             strokeWidth={2.2}
           />
         </View>
@@ -43,7 +47,8 @@ export default function SectionShell({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ReturnType<typeof useTheme>["theme"]["colors"]) =>
+  StyleSheet.create({
   container: {
     flex: 1,
   },
@@ -59,7 +64,7 @@ const styles = StyleSheet.create({
   },
   backButton: {
     alignItems: "center",
-    backgroundColor: darkColors.surfaceContainerHigh,
+    backgroundColor: colors.surfaceContainerHigh,
     borderRadius: radius.full,
     height: 40,
     justifyContent: "center",
@@ -81,11 +86,11 @@ const styles = StyleSheet.create({
   },
   title: {
     ...typography.titleMd,
-    color: darkColors.onSurface,
+    color: colors.onSurface,
   },
   description: {
     ...typography.bodySm,
-    color: darkColors.outline,
+    color: colors.outline,
     lineHeight: 20,
     marginTop: 4,
   },
@@ -97,4 +102,4 @@ const styles = StyleSheet.create({
   pressed: {
     opacity: 0.75,
   },
-});
+  });

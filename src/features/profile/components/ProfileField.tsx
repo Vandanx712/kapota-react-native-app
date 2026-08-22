@@ -6,7 +6,8 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 
-import { darkColors, spacing, typography } from "@/theme/tokens";
+import { useTheme } from "@/theme/ThemeProvider";
+import { spacing, typography } from "@/theme/tokens";
 
 type Props = {
   label: string;
@@ -27,6 +28,9 @@ export default function ProfileField({
   autoCapitalize = "words",
   keyboardType = "default",
 }: Props) {
+  const { theme } = useTheme();
+  const colors = theme.colors;
+  const styles = createStyles(colors);
   const [isFocused, setIsFocused] = useState(false);
   const glow = useSharedValue(0);
 
@@ -56,7 +60,7 @@ export default function ProfileField({
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
-          placeholderTextColor={darkColors.outlineVariant}
+          placeholderTextColor={colors.outlineVariant}
           onFocus={onFocus}
           onBlur={onBlur}
           autoCapitalize={autoCapitalize}
@@ -69,13 +73,14 @@ export default function ProfileField({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ReturnType<typeof useTheme>["theme"]["colors"]) =>
+  StyleSheet.create({
   wrapper: {
     marginBottom: spacing.md,
   },
   label: {
     ...typography.labelMd,
-    color: darkColors.outline,
+    color: colors.outline,
     marginBottom: spacing.xs,
     textTransform: "uppercase",
   },
@@ -84,34 +89,34 @@ const styles = StyleSheet.create({
   },
   input: {
     ...typography.bodyLg,
-    backgroundColor: darkColors.surfaceContainer,
-    borderColor: darkColors.outlineVariant,
+    backgroundColor: colors.surfaceContainer,
+    borderColor: colors.outlineVariant,
     borderRadius: 16,
     borderWidth: 1,
-    color: darkColors.onSurface,
+    color: colors.onSurface,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
   },
   inputFocused: {
-    borderColor: darkColors.primary,
+    borderColor: colors.primary,
     borderWidth: 2,
   },
   errorText: {
-    color: darkColors.error,
+    color: colors.error,
     marginHorizontal: spacing.xs,
     marginTop: 4,
     ...typography.bodySm,
   },
   glow: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: darkColors.primary,
+    ...StyleSheet.absoluteFill,
+    backgroundColor: colors.primary,
     borderRadius: 16,
     elevation: 12,
     opacity: 0,
-    shadowColor: darkColors.primaryContainer,
+    shadowColor: colors.primaryContainer,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.35,
     shadowRadius: 18,
     transform: [{ scale: 1.02 }],
   },
-});
+  });

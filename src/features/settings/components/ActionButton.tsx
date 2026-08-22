@@ -2,7 +2,8 @@ import { Pressable, StyleSheet, Text } from "react-native";
 import type { LucideIcon } from "lucide-react-native";
 import { Loader } from "lucide-react-native";
 
-import { darkColors, radius, spacing, typography } from "@/theme/tokens";
+import { useTheme } from "@/theme/ThemeProvider";
+import { radius, spacing, typography } from "@/theme/tokens";
 
 type Props = {
   label: string;
@@ -23,6 +24,10 @@ export default function ActionButton({
   variant = "outline",
   fullWidth = false,
 }: Props) {
+  const { theme } = useTheme();
+  const colors = theme.colors;
+  const styles = createStyles(colors);
+
   return (
     <Pressable
       onPress={onPress}
@@ -36,9 +41,9 @@ export default function ActionButton({
       ]}
     >
       {loading ? (
-        <Loader size={16} color={darkColors.onSurface} />
+        <Loader size={16} color={colors.onSurface} />
       ) : (
-        Icon && <Icon size={16} color={variant === "danger" ? darkColors.error : darkColors.onSurface} />
+        Icon && <Icon size={16} color={variant === "danger" ? colors.error : colors.onSurface} />
       )}
       <Text
         style={[
@@ -53,7 +58,8 @@ export default function ActionButton({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ReturnType<typeof useTheme>["theme"]["colors"]) =>
+  StyleSheet.create({
   button: {
     alignItems: "center",
     borderRadius: radius.full,
@@ -64,7 +70,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   outline: {
-    backgroundColor: darkColors.surfaceContainerHigh,
+    backgroundColor: colors.surfaceContainerHigh,
     borderColor: "rgba(255,255,255,0.08)",
     borderWidth: 1,
   },
@@ -74,21 +80,21 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   primary: {
-    backgroundColor: darkColors.primaryContainer,
+    backgroundColor: colors.primaryContainer,
   },
   fullWidth: {
     width: "100%",
   },
   label: {
     ...typography.bodySm,
-    color: darkColors.onSurface,
+    color: colors.onSurface,
     fontWeight: "600",
   },
   dangerLabel: {
-    color: darkColors.error,
+    color: colors.error,
   },
   primaryLabel: {
-    color: darkColors.onSurface,
+    color: colors.onSurface,
     fontWeight: "700",
   },
   disabled: {
@@ -97,4 +103,4 @@ const styles = StyleSheet.create({
   pressed: {
     opacity: 0.82,
   },
-});
+  });

@@ -1,7 +1,8 @@
 import { AuthScreenWrapper } from "@/features/auth/components/AuthScreenWrapper";
 import { AuthInput } from "@/features/auth/components/AuthInput";
 import { PrimaryButton } from "@/features/auth/components/PrimaryButton";
-import { darkColors, spacing, typography } from "@/theme/tokens";
+import { useTheme } from "@/theme/ThemeProvider";
+import { spacing, typography } from "@/theme/tokens";
 import {
   ScrollView,
   StyleSheet,
@@ -16,6 +17,9 @@ import { loginSchema, LoginFormData } from "../validation/authScreen";
 import { useAuthStore } from "../store/auth.store";
 
 export default function LoginScreen() {
+  const { theme } = useTheme();
+  const colors = theme.colors;
+  const styles = createStyles(colors);
   const { isLoading, login } = useAuthStore();
   const {
     control,
@@ -97,7 +101,8 @@ export default function LoginScreen() {
     </AuthScreenWrapper>
   );
 }
-const styles = StyleSheet.create({
+const createStyles = (colors: ReturnType<typeof useTheme>["theme"]["colors"]) =>
+  StyleSheet.create({
   scroll: {
     flex: 1,
   },
@@ -110,22 +115,22 @@ const styles = StyleSheet.create({
   },
 
   card: {
-    backgroundColor: darkColors.surfaceContainer,
+    backgroundColor: colors.surfaceContainer,
     borderRadius: 24,
     padding: spacing.lg,
     borderWidth: 1,
-    borderColor: darkColors.outlineVariant,
+    borderColor: colors.outlineVariant,
   },
 
   title: {
     ...typography.headlineLg,
-    color: darkColors.onSurface,
+    color: colors.onSurface,
     marginBottom: spacing.sm,
   },
 
   subtitle: {
     ...typography.bodySm,
-    color: darkColors.onSurfaceVariant,
+    color: colors.onSurfaceVariant,
     marginBottom: spacing.lg,
   },
 
@@ -138,11 +143,11 @@ const styles = StyleSheet.create({
 
   signupText: {
     width: "42%",
-    color: darkColors.onSurfaceVariant,
+    color: colors.onSurfaceVariant,
   },
 
   signupLink: {
-    color: darkColors.primary,
+    color: colors.primary,
     fontWeight: "600",
   },
-});
+  });

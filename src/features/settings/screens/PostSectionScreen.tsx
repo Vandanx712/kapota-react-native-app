@@ -16,9 +16,13 @@ import SectionShell from "@/features/settings/components/SectionShell";
 import StatCard from "@/features/settings/components/StatCard";
 import { useSettingsStore } from "@/features/settings/store/settings.store";
 import type { UserPost } from "@/features/settings/types/settings.types";
-import { darkColors, radius, spacing, typography } from "@/theme/tokens";
+import { useTheme } from "@/theme/ThemeProvider";
+import { radius, spacing, typography } from "@/theme/tokens";
 
 export default function PostSectionScreen() {
+  const { theme } = useTheme();
+  const colors = theme.colors;
+  const styles = createStyles(colors);
   const {
     myPosts,
     postLoading,
@@ -76,12 +80,12 @@ export default function PostSectionScreen() {
 
           {postLoading ? (
             <View style={styles.loadingBox}>
-              <ActivityIndicator color={darkColors.primaryContainer} />
+              <ActivityIndicator color={colors.primaryContainer} />
               <Text style={styles.loadingText}>Loading your posts...</Text>
             </View>
           ) : myPosts.length === 0 ? (
             <View style={styles.emptyState}>
-              <Settings2 size={48} color={darkColors.outline} />
+              <Settings2 size={48} color={colors.outline} />
               <Text style={styles.emptyTitle}>No posts yet</Text>
               <Text style={styles.emptyText}>
                 Once you share posts, they will show up here with quick controls
@@ -136,9 +140,10 @@ export default function PostSectionScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ReturnType<typeof useTheme>["theme"]["colors"]) =>
+  StyleSheet.create({
   screen: {
-    backgroundColor: darkColors.background,
+    backgroundColor: colors.background,
     flex: 1,
   },
   content: {
@@ -157,11 +162,11 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     ...typography.bodySm,
-    color: darkColors.outline,
+    color: colors.outline,
   },
   emptyState: {
     alignItems: "center",
-    backgroundColor: darkColors.surfaceContainer,
+    backgroundColor: colors.surfaceContainer,
     borderColor: "rgba(255,255,255,0.08)",
     borderRadius: radius.xl,
     borderStyle: "dashed",
@@ -170,14 +175,14 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     ...typography.titleMd,
-    color: darkColors.onSurface,
+    color: colors.onSurface,
     marginTop: spacing.sm,
   },
   emptyText: {
     ...typography.bodySm,
-    color: darkColors.outline,
+    color: colors.outline,
     lineHeight: 22,
     marginTop: spacing.xs,
     textAlign: "center",
   },
-});
+  });

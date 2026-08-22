@@ -1,10 +1,12 @@
+import { Check } from "lucide-react-native";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import {
   CHAT_THEME_PALETTES,
   type ChatThemeName,
 } from "../constants/settings.constants";
-import { darkColors, radius, spacing, typography } from "@/theme/tokens";
+import { useTheme } from "@/theme/ThemeProvider";
+import { radius, spacing, typography } from "@/theme/tokens";
 
 type Props = {
   selectedTheme: ChatThemeName;
@@ -12,6 +14,8 @@ type Props = {
 };
 
 export default function ThemePicker({ selectedTheme, onSelect }: Props) {
+  const { theme } = useTheme();
+  const colors = theme.colors;
   const themes = Object.keys(CHAT_THEME_PALETTES) as ChatThemeName[];
 
   return (
@@ -26,7 +30,9 @@ export default function ThemePicker({ selectedTheme, onSelect }: Props) {
             onPress={() => onSelect(theme)}
             style={({ pressed }) => [
               styles.item,
+              { backgroundColor: colors.surfaceContainer },
               isSelected && styles.itemSelected,
+              isSelected && { borderColor: colors.primaryContainer },
               pressed && styles.pressed,
             ]}
           >
@@ -36,9 +42,14 @@ export default function ThemePicker({ selectedTheme, onSelect }: Props) {
               <View style={[styles.swatch, { backgroundColor: palette.accent }]} />
               <View style={[styles.swatch, { backgroundColor: palette.background }]} />
             </View>
-            <Text numberOfLines={1} style={styles.label}>
+            <Text numberOfLines={1} style={[styles.label, { color: colors.onSurfaceVariant }]}>
               {theme.charAt(0).toUpperCase() + theme.slice(1)}
             </Text>
+            {isSelected && (
+              <View style={[styles.check, { backgroundColor: colors.primaryContainer }]}>
+                <Check size={12} color={colors.onPrimary} strokeWidth={3} />
+              </View>
+            )}
           </Pressable>
         );
       })}
@@ -53,16 +64,16 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   item: {
-    backgroundColor: darkColors.surfaceContainer,
-    borderColor: "rgba(255,255,255,0.05)",
-    borderRadius: radius.lg,
+    borderColor: "rgba(255,255,255,0.08)",
+    borderRadius: radius.md,
     borderWidth: 1,
+    minHeight: 72,
     padding: spacing.xs,
-    width: "30%",
+    position: "relative",
+    width: "48%",
   },
   itemSelected: {
-    backgroundColor: "rgba(140,128,255,0.12)",
-    borderColor: darkColors.primaryContainer,
+    backgroundColor: "rgba(140,128,255,0.10)",
   },
   swatchRow: {
     flexDirection: "row",
@@ -75,10 +86,19 @@ const styles = StyleSheet.create({
   },
   label: {
     ...typography.labelMd,
-    color: darkColors.onSurfaceVariant,
     fontSize: 10,
     marginTop: 6,
     textAlign: "center",
+  },
+  check: {
+    alignItems: "center",
+    borderRadius: radius.full,
+    height: 20,
+    justifyContent: "center",
+    position: "absolute",
+    right: 6,
+    top: 6,
+    width: 20,
   },
   pressed: {
     opacity: 0.85,

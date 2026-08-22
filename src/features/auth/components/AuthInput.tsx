@@ -1,4 +1,5 @@
-import { darkColors, spacing, typography } from "@/theme/tokens";
+import { useTheme } from "@/theme/ThemeProvider";
+import { spacing, typography } from "@/theme/tokens";
 import { useState } from "react";
 import { StyleSheet, Text, TextInput, View } from "react-native";
 import Animated, {
@@ -20,6 +21,9 @@ export function AuthInput({
   placeholder = "Email or password",
   error = "",
 }: Props) {
+  const { theme } = useTheme();
+  const colors = theme.colors;
+  const styles = createStyles(colors);
   const [isFocused, setIsFocused] = useState(false);
 
   const glow = useSharedValue(0);
@@ -54,7 +58,7 @@ export function AuthInput({
       <TextInput
         style={[styles.input, isFocused && styles.inputFocused]}
         placeholder={placeholder}
-        placeholderTextColor={darkColors.outlineVariant}
+        placeholderTextColor={colors.outlineVariant}
         value={value}
         onChangeText={onChangeText}
         onFocus={onFocus}
@@ -67,7 +71,8 @@ export function AuthInput({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ReturnType<typeof useTheme>["theme"]["colors"]) =>
+  StyleSheet.create({
   wrapper: {
     marginBottom: spacing.xs,
     position: "relative",
@@ -75,18 +80,18 @@ const styles = StyleSheet.create({
 
   input: {
     borderWidth: 1,
-    borderColor: darkColors.outlineVariant,
+    borderColor: colors.outlineVariant,
     borderRadius: 16,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     ...typography.bodyLg,
-    color: darkColors.onSurface,
-    backgroundColor: darkColors.surfaceContainer,
+    color: colors.onSurface,
+    backgroundColor: colors.surfaceContainer,
   },
 
   inputFocused: {
     borderWidth: 2,
-    borderColor: darkColors.primary,
+    borderColor: colors.primary,
   },
 
   errorText: {
@@ -100,12 +105,12 @@ const styles = StyleSheet.create({
     borderRadius: 16,
 
     // 🔥 core glow color from your splash theme
-    backgroundColor: darkColors.primary,
+    backgroundColor: colors.primary,
 
     opacity: 0,
 
     // soft halo
-    shadowColor: darkColors.primaryContainer,
+    shadowColor: colors.primaryContainer,
     shadowOpacity: 0.35,
     shadowRadius: 18,
     shadowOffset: {
@@ -118,4 +123,4 @@ const styles = StyleSheet.create({
 
     transform: [{ scale: 1.02 }],
   },
-});
+  });

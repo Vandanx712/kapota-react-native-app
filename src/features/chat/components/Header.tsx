@@ -1,9 +1,19 @@
-import { Search } from "lucide-react-native";
+import { Search, Settings } from "lucide-react-native";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import logo from "@/assets/images/kapota-splash-logo.png";
-import { darkColors, elevation, spacing, typography } from "@/theme/tokens";
+import { useTheme } from "@/theme/ThemeProvider";
+import { elevation, spacing, typography } from "@/theme/tokens";
+import { router } from "expo-router";
 
-export default function Header() {
+type Props = {
+  onSearchPress: () => void;
+};
+
+export default function Header({ onSearchPress }: Props) {
+  const { theme } = useTheme();
+  const colors = theme.colors;
+  const styles = createStyles(colors);
+
   return (
     <View style={styles.header}>
       <View style={styles.brandRow}>
@@ -12,15 +22,29 @@ export default function Header() {
       </View>
 
       <View style={styles.headerActions}>
-        <Pressable style={styles.iconButton}>
-          <Search size={22} color={darkColors.outline} strokeWidth={2.4} />
+        <Pressable
+          accessibilityLabel="Search conversations"
+          hitSlop={8}
+          onPress={onSearchPress}
+          style={styles.iconButton}
+        >
+          <Search size={22} color={colors.outline} strokeWidth={2.4} />
+        </Pressable>
+        <Pressable
+          accessibilityLabel="Search conversations"
+          hitSlop={8}
+          onPress={()=> router.push("/settings/index")}
+          style={styles.iconButton}
+        >
+          <Settings size={22} color={colors.outline} strokeWidth={2.4} />
         </Pressable>
       </View>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ReturnType<typeof useTheme>["theme"]["colors"]) =>
+  StyleSheet.create({
   header: {
     alignItems: "center",
     flexDirection: "row",
@@ -39,7 +63,7 @@ const styles = StyleSheet.create({
   },
   brand: {
     ...typography.headlineLg,
-    color: darkColors.onSurface,
+    color: colors.onSurface,
     fontSize: spacing.md,
     fontWeight: "800",
     lineHeight: 45,

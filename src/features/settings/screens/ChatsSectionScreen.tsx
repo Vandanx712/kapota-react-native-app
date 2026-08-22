@@ -1,20 +1,17 @@
 import { MessageCircle } from "lucide-react-native";
-import { useEffect } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import ChatPreview from "@/features/settings/components/ChatPreview";
 import SectionShell from "@/features/settings/components/SectionShell";
 import ThemePicker from "@/features/settings/components/ThemePicker";
-import { useThemeStore } from "@/features/settings/store/theme.store";
-import { darkColors, radius, spacing, typography } from "@/theme/tokens";
+import { useTheme } from "@/theme/ThemeProvider";
+import { radius, spacing, typography } from "@/theme/tokens";
 
 export default function ChatsSectionScreen() {
-  const { chatTheme, hydrateChatTheme, setChatTheme } = useThemeStore();
-
-  useEffect(() => {
-    hydrateChatTheme();
-  }, []);
+  const { theme, setTheme } = useTheme();
+  const colors = theme.colors;
+  const styles = createStyles(colors);
 
   return (
     <SafeAreaView style={styles.screen} edges={["top", "left", "right"]}>
@@ -33,8 +30,8 @@ export default function ChatsSectionScreen() {
               Choose a theme for your chat interface.
             </Text>
             <ThemePicker
-              selectedTheme={chatTheme}
-              onSelect={setChatTheme}
+              selectedTheme={theme.name}
+              onSelect={setTheme}
             />
           </View>
 
@@ -43,7 +40,7 @@ export default function ChatsSectionScreen() {
             <Text style={styles.cardDescription}>
               A quick look at how chats feel with the current theme.
             </Text>
-            <ChatPreview theme={chatTheme} />
+            <ChatPreview theme={theme.name} />
           </View>
         </ScrollView>
       </SectionShell>
@@ -51,16 +48,17 @@ export default function ChatsSectionScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ReturnType<typeof useTheme>["theme"]["colors"]) =>
+  StyleSheet.create({
   screen: {
-    backgroundColor: darkColors.background,
+    backgroundColor: colors.background,
     flex: 1,
   },
   content: {
     paddingBottom: spacing.xl,
   },
   card: {
-    backgroundColor: darkColors.surfaceContainer,
+    backgroundColor: colors.surfaceContainer,
     borderColor: "rgba(255,255,255,0.05)",
     borderRadius: radius.xl,
     borderWidth: 1,
@@ -69,13 +67,13 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     ...typography.titleMd,
-    color: darkColors.onSurface,
+    color: colors.onSurface,
   },
   cardDescription: {
     ...typography.bodySm,
-    color: darkColors.outline,
+    color: colors.outline,
     lineHeight: 20,
     marginBottom: spacing.sm,
     marginTop: 4,
   },
-});
+  });

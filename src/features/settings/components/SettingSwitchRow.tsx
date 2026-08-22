@@ -1,6 +1,7 @@
 import { StyleSheet, Switch, Text, View } from "react-native";
 
-import { darkColors, radius, spacing, typography } from "@/theme/tokens";
+import { useTheme } from "@/theme/ThemeProvider";
+import { radius, spacing, typography } from "@/theme/tokens";
 
 type Props = {
   title: string;
@@ -17,6 +18,10 @@ export default function SettingSwitchRow({
   disabled = false,
   onValueChange,
 }: Props) {
+  const { theme } = useTheme();
+  const colors = theme.colors;
+  const styles = createStyles(colors);
+
   return (
     <View style={styles.row}>
       <View style={styles.copy}>
@@ -29,19 +34,20 @@ export default function SettingSwitchRow({
         disabled={disabled}
         onValueChange={onValueChange}
         trackColor={{
-          false: darkColors.surfaceContainerHighest,
-          true: darkColors.primaryContainer,
+          false: colors.surfaceContainerHighest,
+          true: colors.primaryContainer,
         }}
-        thumbColor={darkColors.onSurface}
+        thumbColor={colors.onSurface}
       />
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ReturnType<typeof useTheme>["theme"]["colors"]) =>
+  StyleSheet.create({
   row: {
     alignItems: "center",
-    backgroundColor: darkColors.surfaceContainerHigh,
+    backgroundColor: colors.surfaceContainerHigh,
     borderRadius: radius.lg,
     flexDirection: "row",
     gap: spacing.sm,
@@ -53,12 +59,12 @@ const styles = StyleSheet.create({
   },
   title: {
     ...typography.bodyLg,
-    color: darkColors.onSurface,
+    color: colors.onSurface,
     fontWeight: "600",
   },
   description: {
     ...typography.bodySm,
-    color: darkColors.outline,
+    color: colors.outline,
     marginTop: 2,
   },
-});
+  });

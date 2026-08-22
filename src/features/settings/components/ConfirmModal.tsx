@@ -7,7 +7,8 @@ import {
   View,
 } from "react-native";
 
-import { darkColors, radius, spacing, typography } from "@/theme/tokens";
+import { useTheme } from "@/theme/ThemeProvider";
+import { radius, spacing, typography } from "@/theme/tokens";
 
 type Props = {
   visible: boolean;
@@ -34,6 +35,10 @@ export default function ConfirmModal({
   onCancel,
   children,
 }: Props) {
+  const { theme } = useTheme();
+  const colors = theme.colors;
+  const styles = createStyles(colors);
+
   return (
     <Modal
       visible={visible}
@@ -88,7 +93,8 @@ export default function ConfirmModal({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ReturnType<typeof useTheme>["theme"]["colors"]) =>
+  StyleSheet.create({
   backdrop: {
     alignItems: "center",
     backgroundColor: "rgba(1,15,31,0.72)",
@@ -97,8 +103,8 @@ const styles = StyleSheet.create({
     padding: spacing.md,
   },
   card: {
-    backgroundColor: darkColors.surfaceContainer,
-    borderColor: "rgba(255,255,255,0.08)",
+    backgroundColor: colors.surfaceContainer,
+    borderColor: colors.outlineVariant,
     borderRadius: radius.xl,
     borderWidth: 1,
     maxWidth: 420,
@@ -107,14 +113,14 @@ const styles = StyleSheet.create({
   },
   title: {
     ...typography.titleMd,
-    color: darkColors.onSurface,
+    color: colors.onSurface,
   },
   titleDestructive: {
-    color: darkColors.error,
+    color: colors.error,
   },
   message: {
     ...typography.bodySm,
-    color: darkColors.outline,
+    color: colors.outline,
     lineHeight: 22,
     marginTop: spacing.xs,
   },
@@ -131,10 +137,10 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
   },
   cancelButton: {
-    backgroundColor: darkColors.surfaceContainerHigh,
+    backgroundColor: colors.surfaceContainerHigh,
   },
   confirmButton: {
-    backgroundColor: darkColors.primaryContainer,
+    backgroundColor: colors.primaryContainer,
   },
   destructiveButton: {
     backgroundColor: "rgba(255,180,171,0.14)",
@@ -143,18 +149,18 @@ const styles = StyleSheet.create({
   },
   cancelText: {
     ...typography.bodySm,
-    color: darkColors.onSurface,
+    color: colors.onSurface,
     fontWeight: "600",
     textAlign: "center",
   },
   confirmText: {
     ...typography.bodySm,
-    color: darkColors.onSurface,
+    color: colors.onSurface,
     fontWeight: "700",
     textAlign: "center",
   },
   destructiveText: {
-    color: darkColors.error,
+    color: colors.error,
   },
   pressed: {
     opacity: 0.8,
@@ -162,4 +168,4 @@ const styles = StyleSheet.create({
   disabled: {
     opacity: 0.5,
   },
-});
+  });

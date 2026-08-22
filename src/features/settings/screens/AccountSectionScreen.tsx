@@ -15,9 +15,13 @@ import ActionButton from "@/features/settings/components/ActionButton";
 import ConfirmModal from "@/features/settings/components/ConfirmModal";
 import SectionShell from "@/features/settings/components/SectionShell";
 import SessionCard from "@/features/settings/components/SessionCard";
-import { darkColors, radius, spacing, typography } from "@/theme/tokens";
+import { useTheme } from "@/theme/ThemeProvider";
+import { radius, spacing, typography } from "@/theme/tokens";
 
 export default function AccountSectionScreen() {
+  const { theme } = useTheme();
+  const colors = theme.colors;
+  const styles = createStyles(colors);
   const {
     activeSessions,
     canManageDevices,
@@ -66,7 +70,7 @@ export default function AccountSectionScreen() {
           <View style={styles.card}>
             <View style={styles.cardHeader}>
               <View style={styles.cardIcon}>
-                <Laptop2 size={22} color={darkColors.primaryContainer} />
+                <Laptop2 size={22} color={colors.primaryContainer} />
               </View>
               <View style={styles.cardCopy}>
                 <Text style={styles.cardTitle}>Active devices</Text>
@@ -111,12 +115,12 @@ export default function AccountSectionScreen() {
 
             {isSessionsLoading ? (
               <View style={styles.loadingBox}>
-                <ActivityIndicator color={darkColors.primaryContainer} />
+                <ActivityIndicator color={colors.primaryContainer} />
                 <Text style={styles.loadingText}>Loading sessions...</Text>
               </View>
             ) : activeSessions.length === 0 ? (
               <View style={styles.emptyState}>
-                <ShieldCheck size={40} color={darkColors.outline} />
+                <ShieldCheck size={40} color={colors.outline} />
                 <Text style={styles.emptyTitle}>No active devices</Text>
                 <Text style={styles.emptyText}>
                   Once you log in, your current device sessions will appear here.
@@ -175,7 +179,7 @@ export default function AccountSectionScreen() {
           value={deletePassword}
           onChangeText={setDeletePassword}
           placeholder="Enter your password"
-          placeholderTextColor={darkColors.outlineVariant}
+          placeholderTextColor={colors.outlineVariant}
           secureTextEntry
           style={styles.passwordInput}
         />
@@ -184,16 +188,17 @@ export default function AccountSectionScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ReturnType<typeof useTheme>["theme"]["colors"]) =>
+  StyleSheet.create({
   screen: {
-    backgroundColor: darkColors.background,
+    backgroundColor: colors.background,
     flex: 1,
   },
   content: {
     paddingBottom: spacing.xl,
   },
   card: {
-    backgroundColor: darkColors.surfaceContainer,
+    backgroundColor: colors.surfaceContainer,
     borderColor: "rgba(255,255,255,0.05)",
     borderRadius: radius.xl,
     borderWidth: 1,
@@ -218,23 +223,23 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     ...typography.titleMd,
-    color: darkColors.onSurface,
+    color: colors.onSurface,
   },
   cardDescription: {
     ...typography.bodySm,
-    color: darkColors.outline,
+    color: colors.outline,
     lineHeight: 20,
     marginTop: 4,
   },
   notice: {
-    backgroundColor: darkColors.surfaceContainerHigh,
+    backgroundColor: colors.surfaceContainerHigh,
     borderRadius: radius.lg,
     marginBottom: spacing.sm,
     padding: spacing.sm,
   },
   noticeText: {
     ...typography.bodySm,
-    color: darkColors.onSurfaceVariant,
+    color: colors.onSurfaceVariant,
     lineHeight: 20,
   },
   actions: {
@@ -248,7 +253,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     ...typography.bodySm,
-    color: darkColors.outline,
+    color: colors.outline,
   },
   emptyState: {
     alignItems: "center",
@@ -260,13 +265,13 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     ...typography.bodyLg,
-    color: darkColors.onSurface,
+    color: colors.onSurface,
     fontWeight: "700",
     marginTop: spacing.sm,
   },
   emptyText: {
     ...typography.bodySm,
-    color: darkColors.outline,
+    color: colors.outline,
     lineHeight: 20,
     marginTop: spacing.xs,
     textAlign: "center",
@@ -280,11 +285,11 @@ const styles = StyleSheet.create({
   },
   dangerTitle: {
     ...typography.titleMd,
-    color: darkColors.error,
+    color: colors.error,
   },
   dangerDescription: {
     ...typography.bodySm,
-    color: darkColors.onSurfaceVariant,
+    color: colors.onSurfaceVariant,
     lineHeight: 20,
     marginTop: spacing.xs,
   },
@@ -297,18 +302,18 @@ const styles = StyleSheet.create({
   },
   dangerNoticeText: {
     ...typography.bodySm,
-    color: darkColors.onSurfaceVariant,
+    color: colors.onSurfaceVariant,
     lineHeight: 20,
   },
   passwordInput: {
     ...typography.bodyLg,
-    backgroundColor: darkColors.surfaceContainerHigh,
-    borderColor: darkColors.outlineVariant,
+    backgroundColor: colors.surfaceContainerHigh,
+    borderColor: colors.outlineVariant,
     borderRadius: radius.lg,
     borderWidth: 1,
-    color: darkColors.onSurface,
+    color: colors.onSurface,
     marginTop: spacing.sm,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.sm,
   },
-});
+  });

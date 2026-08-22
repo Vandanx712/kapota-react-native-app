@@ -1,45 +1,69 @@
-import { Image, StyleSheet, View } from "react-native";
+import { Image, StyleSheet, Text, View } from "react-native";
 import { conversation } from "../types/chat.types";
 import { UsersRound } from "lucide-react-native";
-import { darkColors, radius } from "@/theme/tokens";
+import { useTheme } from "@/theme/ThemeProvider";
+import { radius } from "@/theme/tokens";
 
 export default function Avatar(
-  { item,isOnline }: { item: conversation,isOnline:boolean },
+  { item, isOnline }: { item: conversation; isOnline: boolean },
 ) {
+  const { theme } = useTheme();
+  const colors = theme.colors;
+  const styles = createStyles(colors);
   const imageUri = item.isgroup
     ? item.groupdetail?.groupIcon?.url
     : item.profilePic?.url;
+  const displayName = item.isgroup
+    ? item.groupdetail?.groupname ?? item.name
+    : item.name;
+
   return (
     <View style={styles.avatarFrame}>
-      {item.profilePic?.url ? (
+      {imageUri ? (
         <Image
-          source={{
-            uri: imageUri,
-          }}
+          source={{ uri: imageUri }}
           style={styles.avatarImage}
         />
+      ) : item.isgroup ? (
+        <View style={[styles.avatarImage, styles.avatarFallback]}>
+          <UsersRound size={24} color={colors.onSurface} />
+        </View>
       ) : (
-        <UsersRound size={24} color={darkColors.onSurface} />
+        <View style={[styles.avatarImage, styles.avatarFallback]}>
+          <Text style={styles.avatarInitial}>
+            {displayName.charAt(0).toUpperCase()}
+          </Text>
+        </View>
       )}
       {isOnline && <View style={styles.smallOnlineDot} />}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ReturnType<typeof useTheme>["theme"]["colors"]) =>
+  StyleSheet.create({
   avatarFrame: {
     height: 60,
     width: 60,
   },
   avatarImage: {
-    backgroundColor: darkColors.surfaceContainer,
+    backgroundColor: colors.surfaceContainer,
     borderRadius: 25,
     height: 60,
     width: 60,
   },
+  avatarFallback: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarInitial: {
+    color: colors.onSurface,
+    fontSize: 20,
+    fontWeight: "800",
+  },
   smallOnlineDot: {
-    backgroundColor: darkColors.success,
-    borderColor: "#081121",
+    backgroundColor: colors.success,
+    borderColor: colors.background,
     borderRadius: radius.full,
     borderWidth: 4,
     bottom: -4,
@@ -48,4 +72,4 @@ const styles = StyleSheet.create({
     right: -4,
     width: 24,
   },
-});
+  });

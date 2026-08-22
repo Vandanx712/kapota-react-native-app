@@ -6,13 +6,17 @@ import {
   PREVIEW_MESSAGES,
   type ChatThemeName,
 } from "../constants/settings.constants";
-import { darkColors, radius, spacing, typography } from "@/theme/tokens";
+import { useTheme } from "@/theme/ThemeProvider";
+import { radius, spacing, typography } from "@/theme/tokens";
 
 type Props = {
   theme: ChatThemeName;
 };
 
 export default function ChatPreview({ theme }: Props) {
+  const { theme: appTheme } = useTheme();
+  const colors = appTheme.colors;
+  const styles = createStyles(colors);
   const palette = CHAT_THEME_PALETTES[theme];
 
   return (
@@ -51,7 +55,7 @@ export default function ChatPreview({ theme }: Props) {
               <Text
                 style={[
                   styles.messageText,
-                  { color: message.isSent ? darkColors.onSurface : palette.accent },
+                  { color: message.isSent ? colors.onSurface : palette.accent },
                 ]}
               >
                 {message.content}
@@ -71,14 +75,15 @@ export default function ChatPreview({ theme }: Props) {
           </Text>
         </View>
         <View style={[styles.sendButton, { backgroundColor: palette.incoming }]}>
-          <Send size={14} color={darkColors.onSurface} />
+          <Send size={14} color={colors.onSurface} />
         </View>
       </View>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ReturnType<typeof useTheme>["theme"]["colors"]) =>
+  StyleSheet.create({
   container: {
     borderColor: "rgba(255,255,255,0.08)",
     borderRadius: radius.xl,
@@ -102,7 +107,7 @@ const styles = StyleSheet.create({
   },
   avatarText: {
     ...typography.bodyLg,
-    color: darkColors.onSurface,
+    color: colors.onSurface,
     fontWeight: "700",
   },
   name: {
@@ -164,4 +169,4 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     width: 34,
   },
-});
+  });
