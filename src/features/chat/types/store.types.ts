@@ -1,11 +1,11 @@
 import type {
-  ChatMessage,
-  ChatUser,
-  Conversation,
-  GroupUpdatePayload,
-  MessageSeenPayload,
-  RefreshGroupEvent,
-  TypingPayload,
+    ChatMessage,
+    ChatUser,
+    Conversation,
+    GroupUpdatePayload,
+    MessageSeenPayload,
+    RefreshGroupEvent,
+    TypingPayload,
 } from "./chat.types";
 
 export type SendMessageInput = {
@@ -45,8 +45,14 @@ export interface ChatState {
   ) => void;
   resetChatState: () => void;
   sendMessage: (data: SendMessageInput) => Promise<boolean>;
-  setClearChat: (conversation: { _id?: string; conversationId?: string }) => void;
-  setConBgimage: (conversationId: string, bgImage: Conversation["bgImage"]) => void;
+  setClearChat: (conversation: {
+    _id?: string;
+    conversationId?: string;
+  }) => void;
+  setConBgimage: (
+    conversationId: string,
+    bgImage: Conversation["bgImage"],
+  ) => void;
   setDeletedMessage: (message: ChatMessage) => void;
   setDeletedMessageForSlider: (message: ChatMessage) => void;
   setGroupUpdation: (conversation: GroupUpdatePayload) => void;
