@@ -1,6 +1,11 @@
+import { registerAuthSocketSession } from "@/services/socket/authSocketSession";
+import { registerChatSocketListeners } from "@/services/socket/chatSocket";
+import { secureStorage } from "@/services/storage/secureStorage";
+import { showErrorToast, showSuccessToast } from "@/utils/toast";
+import { isAxiosError } from "axios";
+import { router } from "expo-router";
+import { io } from "socket.io-client";
 import { create } from "zustand";
-import { AuthState } from "../types/store.types";
-import { LoginFormData, SignupFormData } from "../validation/authScreen";
 import {
   checkUser,
   deleteAccount,
@@ -15,19 +20,14 @@ import {
   verifyForgotPasswordOtp,
   verifySignupOtpRequest,
 } from "../api/authApi";
-import { showSuccessToast, showErrorToast } from "@/utils/toast";
-import { isAxiosError } from "axios";
-import { router } from "expo-router";
-import { secureStorage } from "@/services/storage/secureStorage";
 import {
   DeleteAccount,
   RequestForgotPass,
   VerifyForgotPass,
   VerifySignup,
 } from "../types/auth.types";
-import { io } from "socket.io-client";
-import { registerChatSocketListeners } from "@/services/socket/chatSocket";
-import { registerAuthSocketSession } from "@/services/socket/authSocketSession";
+import { AuthState } from "../types/store.types";
+import { LoginFormData, SignupFormData } from "../validation/authScreen";
 
 const throwError = (error: any) => {
   if (isAxiosError(error)) {

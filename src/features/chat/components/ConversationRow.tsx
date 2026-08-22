@@ -1,18 +1,13 @@
+import { useAuthStore } from "@/features/auth/store/auth.store";
+import { useTheme } from "@/theme/ThemeProvider";
+import { elevation, radius, spacing, typography } from "@/theme/tokens";
 import dayjs from "dayjs";
+import { LinearGradient } from "expo-linear-gradient";
 import { CheckCheck } from "lucide-react-native";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import {
-  elevation,
-  radius,
-  spacing,
-  typography,
-} from "@/theme/tokens";
-import { useTheme } from "@/theme/ThemeProvider";
+import { useChatStore } from "../store/chat.store";
 import { conversation } from "../types/chat.types";
 import Avatar from "./ChatAvatar";
-import { LinearGradient } from "expo-linear-gradient";
-import { useAuthStore } from "@/features/auth/store/auth.store";
-import { useChatStore } from "../store/chat.store";
 
 type Props = {
   item: conversation;
@@ -103,64 +98,64 @@ export default function ConversationRow({ item, onPress }: Props) {
 
 const createStyles = (colors: ReturnType<typeof useTheme>["theme"]["colors"]) =>
   StyleSheet.create({
-  conversationRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    minHeight: 76,
-    paddingHorizontal: spacing.xs,
-  },
-  pressed: {
-    opacity: 0.72,
-  },
-  conversationBody: {
-    flex: 1,
-    justifyContent: "center",
-    marginLeft: spacing.md,
-    minWidth: 0,
-  },
-  rowTop: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: spacing.sm,
-    justifyContent: "space-between",
-    marginBottom: 7,
-  },
-  conversationName: {
-    color: colors.onSurface,
-    flex: 1,
-    fontSize: 15,
-    fontWeight: "800",
-  },
-  timeText: {
-    ...typography.bodySm,
-    color: colors.outline,
-  },
-  previewRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    minWidth: 0,
-    gap: 5,
-  },
-  senderText: {
-    ...typography.bodySm,
-    color: colors.primaryContainer,
-  },
-  messageText: {
-    ...typography.bodySm,
-    color: colors.outline,
-    flex: 1,
-  },
-  unreadBadge: {
-    alignItems: "center",
-    borderRadius: radius.full,
-    justifyContent: "center",
-    marginLeft: spacing.sm,
-    width: 20,
-    height: 20,
-    ...elevation.level2,
-  },
-  unreadText: {
-    ...typography.bodySm,
-    color: colors.onSurface,
-  },
+    conversationRow: {
+      alignItems: "center",
+      flexDirection: "row",
+      minHeight: 76,
+      paddingHorizontal: spacing.xs,
+    },
+    pressed: {
+      opacity: 0.72,
+    },
+    conversationBody: {
+      flex: 1,
+      justifyContent: "center",
+      marginLeft: spacing.md,
+      minWidth: 0,
+    },
+    rowTop: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: spacing.sm,
+      justifyContent: "space-between",
+      marginBottom: 7,
+    },
+    conversationName: {
+      color: colors.onSurface,
+      flex: 1,
+      fontSize: 15,
+      fontWeight: "800",
+    },
+    timeText: {
+      ...typography.bodySm,
+      color: colors.outline,
+    },
+    previewRow: {
+      alignItems: "center",
+      flexDirection: "row",
+      minWidth: 0,
+      gap: 5,
+    },
+    senderText: {
+      ...typography.bodySm,
+      color: colors.primaryContainer,
+    },
+    messageText: {
+      ...typography.bodySm,
+      color: colors.outline,
+      flex: 1,
+    },
+    unreadBadge: {
+      alignItems: "center",
+      borderRadius: radius.full,
+      justifyContent: "center",
+      marginLeft: spacing.sm,
+      width: 20,
+      height: 20,
+      ...elevation.level2,
+    },
+    unreadText: {
+      ...typography.bodySm,
+      color: colors.onSurface,
+    },
   });

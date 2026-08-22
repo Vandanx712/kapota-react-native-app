@@ -1,15 +1,15 @@
-import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "expo-router";
 import { Edit3, Search, X } from "lucide-react-native";
+import { useEffect, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
-  FlatList,
-  Pressable,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
+    ActivityIndicator,
+    FlatList,
+    Pressable,
+    RefreshControl,
+    StyleSheet,
+    Text,
+    TextInput,
+    View,
 } from "react-native";
 
 import { ScreenWrapper } from "@/shared/components/ScreenWrapper";
@@ -35,9 +35,7 @@ export default function ChatScreen() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [query, setQuery] = useState("");
 
-  const conversationError = useChatStore(
-    (state) => state.conversationError,
-  );
+  const conversationError = useChatStore((state) => state.conversationError);
   const conversations = useChatStore((state) => state.conversations);
   const getConversation = useChatStore((state) => state.getConversation);
   const isConversationLoading = useChatStore(
@@ -146,10 +144,7 @@ export default function ChatScreen() {
         keyExtractor={(item) => item.conversationId}
         ListEmptyComponent={
           isConversationLoading ? (
-            <ActivityIndicator
-              color={colors.primaryContainer}
-              size="large"
-            />
+            <ActivityIndicator color={colors.primaryContainer} size="large" />
           ) : (
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyTitle}>
@@ -206,9 +201,7 @@ export default function ChatScreen() {
   );
 }
 
-const createStyles = (
-  colors: ReturnType<typeof useTheme>["theme"]["colors"],
-) =>
+const createStyles = (colors: ReturnType<typeof useTheme>["theme"]["colors"]) =>
   StyleSheet.create({
     composeButton: {
       alignItems: "center",

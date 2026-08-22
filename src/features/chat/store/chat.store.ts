@@ -4,17 +4,13 @@ import { create } from "zustand";
 import { getAuthSocketSession } from "@/services/socket/authSocketSession";
 import { showErrorToast } from "@/utils/toast";
 import {
-  createConversation as createConversationRequest,
-  getAllUsers,
-  getConversations,
-  getMessages as getMessagesRequest,
-  sendMessage as sendMessageRequest,
+    createConversation as createConversationRequest,
+    getAllUsers,
+    getConversations,
+    getMessages as getMessagesRequest,
+    sendMessage as sendMessageRequest,
 } from "../api/chatApi";
-import type {
-  ChatMessage,
-  ChatUser,
-  Conversation,
-} from "../types/chat.types";
+import type { ChatMessage, ChatUser, Conversation } from "../types/chat.types";
 import type { ChatState } from "../types/store.types";
 
 const MESSAGE_PAGE_LIMIT = 30;
@@ -388,9 +384,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         newMessage.conversationId;
       const isOwn = newMessage.sender === authUser?._id;
       const unseenMsg =
-        newMessage.system || isOwn || isOpen
-          ? 0
-          : (target.unseenMsg ?? 0) + 1;
+        newMessage.system || isOwn || isOpen ? 0 : (target.unseenMsg ?? 0) + 1;
 
       conversations.unshift({ ...target, lastmessage: newMessage, unseenMsg });
       return { conversations };
@@ -454,7 +448,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         const actor =
           authUser?._id === message.userId
             ? "You"
-            : memberName ?? conversation.name;
+            : (memberName ?? conversation.name);
         const text =
           message.reacted !== conversation.lastmessage.reacted
             ? `${actor} reacted ${message.reacted ?? ""} to '${message.text ?? ""}'`
@@ -471,9 +465,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   setReactedMsg: (message) => {
     set((state) => ({
       messages: state.messages.map((item) =>
-        item._id === message._id
-          ? { ...item, reacted: message.reacted }
-          : item,
+        item._id === message._id ? { ...item, reacted: message.reacted } : item,
       ),
     }));
   },
@@ -582,8 +574,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
                   group.groupname ??
                   conversation.groupdetail?.groupname ??
                   conversation.name,
-                membersDetail:
-                  conversation.groupdetail?.membersDetail ?? {},
+                membersDetail: conversation.groupdetail?.membersDetail ?? {},
               },
             }
           : conversation;
@@ -619,8 +610,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
           conversation.conversationId === incomingId
             ? {
                 ...conversation,
-                groupdetail:
-                  normalized.groupdetail ?? conversation.groupdetail,
+                groupdetail: normalized.groupdetail ?? conversation.groupdetail,
               }
             : conversation,
         );
