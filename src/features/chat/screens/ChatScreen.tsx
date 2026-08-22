@@ -50,7 +50,6 @@ export default function ChatScreen() {
   useEffect(() => {
     void getConversation();
   }, [getConversation]);
-
   const filteredChats = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
     return conversations.filter((conversation) => {
