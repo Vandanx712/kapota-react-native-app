@@ -1,6 +1,11 @@
+import { registerAuthSocketSession } from "@/services/socket/authSocketSession";
+import { registerChatSocketListeners } from "@/services/socket/chatSocket";
+import { secureStorage } from "@/services/storage/secureStorage";
+import { showErrorToast, showSuccessToast } from "@/utils/toast";
+import { isAxiosError } from "axios";
+import { router } from "expo-router";
+import { io } from "socket.io-client";
 import { create } from "zustand";
-import { AuthState } from "../types/store.types";
-import { LoginFormData, SignupFormData } from "../validation/authScreen";
 import {
   checkUser,
   deleteAccount,
@@ -15,21 +20,17 @@ import {
   verifyForgotPasswordOtp,
   verifySignupOtpRequest,
 } from "../api/authApi";
-import { showSuccessToast, showErrorToast } from "@/utils/toast";
-import axios from "axios";
-import { router } from "expo-router";
-import { secureStorage } from "@/services/storage/secureStorage";
 import {
   DeleteAccount,
   RequestForgotPass,
   VerifyForgotPass,
   VerifySignup,
 } from "../types/auth.types";
-import { io } from "socket.io-client";
-import { useChatSocket } from "@/services/socket/chatSocket";
+import { AuthState } from "../types/store.types";
+import { LoginFormData, SignupFormData } from "../validation/authScreen";
 
 const throwError = (error: any) => {
-  if (axios.isAxiosError(error)) {
+  if (isAxiosError(error)) {
     showErrorToast(error.response?.data?.message);
   } else {
     showErrorToast("Something went wrong");
@@ -43,6 +44,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isLoading: false,
   isCheckingAuth: false,
   canManageDevices: false,
+  socket: null,
+  isPhotoUploading: false,
+  isDeletingAccount: false,
+  isLoggingOutOthers: false,
+  isSessionsLoading: false,
   sessionActionId: null,
   activeSessions: [],
   onlineUsers: [],
@@ -112,9 +118,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set({ isLoading: true, isPhotoUploading: true });
       const resdata = await updatePic(data);
       showSuccessToast(resdata?.message);
-      set((state) => ({
-        authUser: { ...state.authUser, profilePic: resdata.user.profilePic },
-      }));
+      set((state) =>
+        state.authUser
+          ? {
+              authUser: {
+                ...state.authUser,
+                profilePic: resdata.user.profilePic,
+              },
+            }
+          : state,
+      );
     } catch (error) {
       throwError(error);
     } finally {
@@ -134,21 +147,32 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   deleteAccount: async (data: DeleteAccount) => {
-    set({ isLoading: true });
+    set({ isDeletingAccount: true, isLoading: true });
     try {
       const resdata = await deleteAccount(data);
       get().disconnectSocket();
-      set({ authUser: null, activeSessions: [], canManageDevices: false });
+      await Promise.all([
+        secureStorage.deleteToken(),
+        secureStorage.deleteDeviceId(),
+      ]);
+      set({
+        activeSessions: [],
+        authUser: null,
+        canManageDevices: false,
+        token: null,
+        trustedDeviceId: null,
+      });
       showSuccessToast(resdata?.message);
+      router.replace("/(auth)/login");
     } catch (error) {
-      showErrorToast(error);
+      showErrorToast(String(error));
     } finally {
-      set({ isLoading: false });
+      set({ isDeletingAccount: false, isLoading: false });
     }
   },
 
   fetchActiveSessions: async () => {
-    set({ isLoading: true });
+    set({ isSessionsLoading: true });
     try {
       const resdata = await getActiveSessions();
       set({
@@ -158,7 +182,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     } catch (error) {
       throwError(error);
     } finally {
-      set({ isLoading: false });
+      set({ isSessionsLoading: false });
     }
   },
 
@@ -188,14 +212,21 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   logout: async () => {
+    get().disconnectSocket();
+    await Promise.all([
+      secureStorage.deleteToken(),
+      secureStorage.deleteDeviceId(),
+    ]);
     set({
       authUser: null,
       token: null,
+      trustedDeviceId: null,
+      onlineUsers: [],
       activeSessions: [],
       canManageDevices: false,
     });
-    get().disconnectSocket();
     showSuccessToast("Logout successfully");
+    router.replace("/(auth)/login");
   },
 
   logoutOneSession: async (sessionId: string) => {
@@ -242,60 +273,94 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   checkAuth: async () => {
     try {
       set({ isCheckingAuth: true });
+
+      const token = await secureStorage.getToken();
+      if (!token) {
+        set({
+          authUser: null,
+          token: null,
+          canManageDevices: false,
+        });
+        return;
+      }
+
       const data = await checkUser();
-      set({ authUser: data.user });
+      set({ authUser: data.user, token });
     } catch (error) {
       set({ authUser: null, token: null, canManageDevices: false });
+      await secureStorage.deleteToken();
       console.log("Check auth error:", error);
-      throwError(error);
     } finally {
       set({ isCheckingAuth: false });
     }
   },
 
   connectSocket: async () => {
-    if (get().socket?.connected) return;
+    const currentSocket = get().socket;
+    if (currentSocket?.connected) return;
+    if (currentSocket) {
+      currentSocket.removeAllListeners();
+      currentSocket.disconnect();
+      set({ socket: null });
+    }
 
     const token = await secureStorage.getToken();
+    const socketUrl = process.env.EXPO_PUBLIC_API_URL;
+    if (!token || !socketUrl) return;
 
-    const socket = io(process.env.EXPO_PUBLIC_API_URL, {
+    const socket = io(socketUrl, {
+      autoConnect: false,
+      reconnection: true,
       transports: ["websocket"],
       auth: {
         token,
       },
     });
-    socket.connect();
-
-    useChatSocket(socket);
 
     set({ socket: socket });
+    registerChatSocketListeners(socket);
 
-    socket.on("force-logout", () => {
+    socket.on("force-logout", async () => {
       get().disconnectSocket();
+      await Promise.all([
+        secureStorage.deleteToken(),
+        secureStorage.deleteDeviceId(),
+      ]);
 
       set({
         authUser: null,
+        token: null,
+        trustedDeviceId: null,
         onlineUsers: [],
         activeSessions: [],
         canManageDevices: false,
       });
       showErrorToast("You were logged out from this device");
+      router.replace("/(auth)/login");
     });
 
-    socket.on("getonlineusers", (users) => {
-      set({ onlineUsers: users });
+    socket.on("getonlineusers", (users: unknown) => {
+      set({
+        onlineUsers: Array.isArray(users)
+          ? users.map((userId) => String(userId))
+          : [],
+      });
     });
+
+    socket.connect();
   },
 
   disconnectSocket: () => {
     const { socket } = get();
-    if (socket?.connected) {
+    if (socket) {
       socket.removeAllListeners();
       socket.disconnect();
     }
-    set({ socket: null });
-
-    secureStorage.deleteToken();
-    router.replace("/(auth)/login");
+    set({ onlineUsers: [], socket: null });
   },
 }));
+
+registerAuthSocketSession(() => {
+  const { authUser, socket } = useAuthStore.getState();
+  return { authUser, socket };
+});

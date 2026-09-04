@@ -1,25 +1,78 @@
-export interface conversation {
+export type MediaAsset = {
+  key?: string;
+  url: string;
+};
+
+export type ChatUser = {
+  _id: string;
+  bio?: string;
+  fullname: string;
+  profilePic?: MediaAsset;
+};
+
+export type GroupMember = {
+  fullname: string;
+  profilePic?: MediaAsset;
+  role: string;
+};
+
+export type ChatMessage = {
+  _id: string;
   conversationId: string;
-  name: string;
-  profilePic?: { url: string; key: string };
-  bgImage?: { url: string; key: string };
-  oruserId: string;
-  lastmessage?: {
-    text: string;
-    image: { url: string; key: string };
-    sender: string;
-    deletedFor: [];
-    deletedForEveryone: boolean;
+  createdAt?: string;
+  deletedFor?: string[];
+  deletedForEveryone?: boolean;
+  image?: MediaAsset | null;
+  isSeen?: boolean;
+  reacted?: string | null;
+  seenBy?: string[];
+  sender: string;
+  system?: boolean;
+  text?: string;
+  updatedAt?: string;
+};
+
+export type Conversation = {
+  bgImage?: MediaAsset;
+  conversationId: string;
+  groupdetail?: {
+    groupIcon?: MediaAsset;
+    groupname: string;
+    membersDetail: Record<string, GroupMember>;
   };
   isgroup?: boolean;
-  groupdetail?: {
-    groupname: string;
-    groupIcon: { url: string; key: string };
-    membersDetail: {
-      fullname: string;
-      role: string;
-      profilePic: { url: string; key: string };
-    };
-  };
+  lastmessage?: ChatMessage;
+  name: string;
+  oruserId?: string;
+  profilePic?: MediaAsset;
   unseenMsg?: number | null;
-}
+};
+
+export type TypingPayload = {
+  receiverId: string;
+  userId: string;
+};
+
+export type MessageSeenPayload =
+  | string
+  | {
+      isSeen?: boolean;
+      msgId?: string;
+      seenBy?: string[];
+      userId?: string;
+    };
+
+export type GroupUpdatePayload = {
+  _id: string;
+  groupIcon?: MediaAsset;
+  groupname?: string;
+};
+
+export type RefreshGroupEvent =
+  | "DELETE_CONVERSATION"
+  | "EXIT_GROUP"
+  | "NEW_CONVERSATION"
+  | "UPDATE_MEMBERS";
+
+// Kept as an alias while existing components migrate to PascalCase.
+export type conversation = Conversation;

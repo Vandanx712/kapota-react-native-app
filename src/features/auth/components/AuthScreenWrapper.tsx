@@ -1,4 +1,5 @@
-import { darkColors, spacing, typography } from "@/theme/tokens";
+import { useTheme } from "@/theme/ThemeProvider";
+import { spacing, typography } from "@/theme/tokens";
 import { ReactNode } from "react";
 import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -15,6 +16,10 @@ export function AuthScreenWrapper({
   showHeader = true,
   onHelpPress,
 }: Props) {
+  const { theme } = useTheme();
+  const colors = theme.colors;
+  const styles = createStyles(colors);
+
   return (
     <SafeAreaView style={styles.screen}>
       {showHeader && (
@@ -40,15 +45,16 @@ export function AuthScreenWrapper({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ReturnType<typeof useTheme>["theme"]["colors"]) =>
+  StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: darkColors.background,
+    backgroundColor: colors.background,
   },
   header: {
-    backgroundColor: darkColors.background,
+    backgroundColor: colors.background,
     borderBottomWidth: 1,
-    borderBottomColor: darkColors.surfaceContainerHigh,
+    borderBottomColor: colors.surfaceContainerHigh,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
   },
@@ -68,19 +74,19 @@ const styles = StyleSheet.create({
   },
   logoText: {
     ...typography.headlineLgMobile,
-    color: darkColors.onSecondaryContainer,
+    color: colors.onSecondaryContainer,
     fontWeight: "800",
   },
   helpIcon: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: darkColors.surfaceContainer,
+    backgroundColor: colors.surfaceContainer,
     justifyContent: "center",
     alignItems: "center",
   },
   helpIconText: {
     ...typography.labelMd,
-    color: darkColors.onSurface,
+    color: colors.onSurface,
   },
-});
+  });

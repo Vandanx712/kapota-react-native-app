@@ -3,6 +3,19 @@ export interface SplashStatusItem {
   label: string;
 }
 
+export interface AuthUser {
+  _id: string;
+  bio?: string;
+  email?: string;
+  fullname: string;
+  gender?: string;
+  location?: Record<string, unknown>;
+  profilePic?: {
+    key?: string;
+    url: string;
+  };
+}
+
 export interface VerifySignup {
   fullname: string;
   email: string;
@@ -16,8 +29,8 @@ export interface RequestForgotPass {
   email: string;
 }
 
-export interface DeleteAccount{
-  password:string
+export interface DeleteAccount {
+  password: string;
 }
 
 export interface VerifyForgotPass {

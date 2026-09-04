@@ -5,29 +5,42 @@ import {
   PlusCircle,
   UserRound,
 } from "lucide-react-native";
-import { colors, radius, spacing, typography } from "@/theme/tokens";
+import { useTheme } from "@/theme/ThemeProvider";
+import { radius, spacing, typography } from "@/theme/tokens";
 import { StyleSheet, View } from "react-native";
 
 export default function TabsLayout() {
+  const { theme } = useTheme();
+  const colors = theme.colors;
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.outline,
-        tabBarShowLabel: false,
+        tabBarShowLabel: true,
+        tabBarLabelStyle: {
+          ...typography.titleMd,
+          fontSize: 12,
+          marginBottom: 2,
+        },
+        tabBarItemStyle: {
+          paddingTop: 4,
+        },
 
         tabBarStyle: {
           position: "absolute",
-          left: 20,
-          right: 20,
-          bottom: 24,
-          height: 72,
-          borderRadius: 36,
-          backgroundColor: "rgba(18,33,49,0.85)",
+          left: spacing.md,
+          right: spacing.md,
+          bottom: spacing.md,
+          height: 78,
+          borderRadius: radius.full,
+          backgroundColor: colors.surfaceContainer,
           borderWidth: 1,
-          borderColor: "rgba(255,255,255,0.08)",
-          marginHorizontal: 10,
+          borderColor: colors.outlineVariant,
+          paddingBottom: 8,
+          paddingTop: 6,
         },
       }}
     >
@@ -36,8 +49,8 @@ export default function TabsLayout() {
         options={{
           title: "Chats",
           tabBarIcon: ({ focused, color }) => (
-            <View style={styles(focused).iconcontainer}>
-              <MessageSquare color={focused ? "#fff" : color} size={30} />
+            <View>
+              <MessageSquare color={focused ? colors.primary : color} size={24} strokeWidth={2.4} />
             </View>
           ),
         }}
@@ -47,8 +60,8 @@ export default function TabsLayout() {
         options={{
           title: "Explore",
           tabBarIcon: ({ focused, color }) => (
-            <View style={styles(focused).iconcontainer}>
-              <Compass color={focused ? "#fff" : color} size={30} />
+            <View>
+              <Compass color={focused ? colors.primary : color} size={24} strokeWidth={2.4} />
             </View>
           ),
         }}
@@ -58,8 +71,8 @@ export default function TabsLayout() {
         options={{
           title: "Post",
           tabBarIcon: ({ focused, color }) => (
-            <View style={styles(focused).iconcontainer}>
-              <PlusCircle color={focused ? "#fff" : color} size={30} />
+            <View>
+              <PlusCircle color={focused ? colors.primary : color} size={24} strokeWidth={2.4} />
             </View>
           ),
         }}
@@ -69,8 +82,8 @@ export default function TabsLayout() {
         options={{
           title: "Profile",
           tabBarIcon: ({ focused, color }) => (
-            <View style={styles(focused).iconcontainer}>
-              <UserRound color={focused ? "#fff" : color} size={30} />
+            <View>
+              <UserRound color={focused ? colors.primary : color} size={24} strokeWidth={2.4} />
             </View>
           ),
         }}
@@ -78,16 +91,3 @@ export default function TabsLayout() {
     </Tabs>
   );
 }
-
-const styles = (focused: any) =>
-  StyleSheet.create({
-    iconcontainer: {
-      width: 56,
-      height: 56,
-      borderRadius: radius.full,
-      backgroundColor: focused ? "#7662F8" : "transparent",
-      justifyContent: "center",
-      alignItems: "center",
-      transform: [{ translateY: spacing.sm }],
-    },
-  });

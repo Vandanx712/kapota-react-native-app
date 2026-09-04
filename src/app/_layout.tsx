@@ -1,7 +1,6 @@
 import { Stack } from "expo-router";
-import { colors } from "@/theme/tokens";
 import Toast from "react-native-toast-message";
-import { ThemeProvider } from "@/theme/ThemeProvider";
+import { ThemeProvider, useTheme } from "@/theme/ThemeProvider";
 import { toastConfig } from "@/shared/components/toast/toast";
 import { useAuthStore } from "@/features/auth/store/auth.store";
 import { useEffect } from "react";
@@ -16,40 +15,86 @@ export default function RootLayout() {
     connectSocket,
     disconnectSocket,
   } = useAuthStore();
+  const isAuthenticated = Boolean(authUser && token);
 
   useEffect(() => {
-    checkAuth();
-  }, []);
+    void checkAuth();
+  }, [checkAuth]);
 
   useEffect(() => {
-    if (!authUser) return;
+    if (!isAuthenticated) return;
 
-    connectSocket();
+    void connectSocket();
 
     return () => {
       disconnectSocket();
     };
-  }, [authUser]);
+  }, [connectSocket, disconnectSocket, isAuthenticated]);
 
   if (isCheckingAuth) {
-    return <SaplahScreen />;
+    return (
+      <ThemeProvider>
+        <SaplahScreen />
+      </ThemeProvider>
+    );
   }
 
   return (
     <ThemeProvider>
+      <RootNavigator isAuthenticated={isAuthenticated} />
+    </ThemeProvider>
+  );
+}
+
+function RootNavigator({ isAuthenticated }: { isAuthenticated: boolean }) {
+  const { theme } = useTheme();
+
+  return (
+    <>
       <Stack
         screenOptions={{
-          contentStyle: { backgroundColor: colors.background },
+          contentStyle: { backgroundColor: theme.colors.background },
           headerShown: false,
         }}
       >
-        {authUser ? (
-          <Stack.Screen name="(tabs)" />
-        ) : (
+        <Stack.Protected guard={!isAuthenticated}>
+          <Stack.Screen name="index" />
           <Stack.Screen name="(auth)" />
-        )}
+        </Stack.Protected>
+
+        <Stack.Protected guard={isAuthenticated}>
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen
+            name="chat/[conversationId]"
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="settings/index"
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="settings/account"
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="settings/post"
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="settings/chats"
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="settings/help"
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="profile/edit"
+            options={{ headerShown: false }}
+          />
+        </Stack.Protected>
       </Stack>
       <Toast config={toastConfig} />
-    </ThemeProvider>
+    </>
   );
 }
