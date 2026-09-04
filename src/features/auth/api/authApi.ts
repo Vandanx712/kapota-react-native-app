@@ -65,17 +65,17 @@ export const logoutOtherSessions = async () => {
 
 //profile part
 
-export const getAvatars = async (data) => {
+export const getAvatars = async (data: FormData | Record<string, unknown>) => {
   const response = await api.post("/user/getavatar", data);
   return response.data;
 };
 
-export const updatePic = async (data) => {
+export const updatePic = async (data: FormData | Record<string, unknown>) => {
   const response = await api.put("/user/pic", data);
   return response.data;
 };
 
-export const updateProfile = async (data) => {
+export const updateProfile = async (data: Record<string, unknown>) => {
   const response = await api.put("/user/updateprofile", data);
   return response.data;
 };

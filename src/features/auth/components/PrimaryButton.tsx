@@ -1,4 +1,5 @@
-import { darkColors, spacing, typography } from "@/theme/tokens";
+import { useTheme } from "@/theme/ThemeProvider";
+import { spacing, typography } from "@/theme/tokens";
 import { Loader } from "lucide-react-native";
 import React, { useEffect } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
@@ -17,6 +18,9 @@ type Props = {
 };
 
 export function PrimaryButton({ onPress, label, loading = false }: Props) {
+  const { theme } = useTheme();
+  const colors = theme.colors;
+  const styles = createStyles(colors);
   const pulse = useSharedValue(0);
 
   useEffect(() => {
@@ -75,7 +79,8 @@ export function PrimaryButton({ onPress, label, loading = false }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ReturnType<typeof useTheme>["theme"]["colors"]) =>
+  StyleSheet.create({
   wrapper: {
     position: "relative",
     marginBottom: spacing.sm,
@@ -87,22 +92,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: darkColors.primary,
+    backgroundColor: colors.primary,
     zIndex: 2,
   },
 
   text: {
     ...typography.titleMd,
-    color: darkColors.onPrimary,
+    color: colors.onPrimary,
   },
 
   glow: {
     ...StyleSheet.absoluteFill,
     borderRadius: 16,
 
-    backgroundColor: darkColors.primaryContainer,
+    backgroundColor: colors.primaryContainer,
 
-    shadowColor: darkColors.primaryContainer,
+    shadowColor: colors.primaryContainer,
     shadowOpacity: 0.45,
     shadowRadius: 24,
     shadowOffset: {
@@ -112,4 +117,4 @@ const styles = StyleSheet.create({
 
     elevation: 14,
   },
-});
+  });

@@ -1,219 +1,640 @@
-import { showErrorToast } from "@/utils/toast";
-import axios from "axios";
+import { isAxiosError } from "axios";
 import { create } from "zustand";
-import { ChatState } from "../types/store.types";
-import { getConversations } from "../api/chatApi";
-import { conversation } from "../types/chat.types";
-import { useAuthStore } from "@/features/auth/store/auth.store";
 
-const throwError = (error: any) => {
-  if (axios.isAxiosError(error)) {
-    showErrorToast(error.response?.data?.message);
-  } else {
-    showErrorToast("Something went wrong");
+import { getAuthSocketSession } from "@/services/socket/authSocketSession";
+import { showErrorToast } from "@/utils/toast";
+import {
+    createConversation as createConversationRequest,
+    getAllUsers,
+    getConversations,
+    getMessages as getMessagesRequest,
+    sendMessage as sendMessageRequest,
+} from "../api/chatApi";
+import type { ChatMessage, ChatUser, Conversation } from "../types/chat.types";
+import type { ChatState } from "../types/store.types";
+
+const MESSAGE_PAGE_LIMIT = 30;
+const USER_PAGE_LIMIT = 30;
+
+const getErrorMessage = (error: unknown, fallback: string) => {
+  if (isAxiosError<{ message?: string }>(error)) {
+    return error.response?.data?.message ?? fallback;
   }
+  return fallback;
+};
+
+const normalizeConversation = (
+  value: Partial<Conversation> & { _id?: string },
+): Conversation | null => {
+  const conversationId = String(value.conversationId ?? value._id ?? "");
+  if (!conversationId) return null;
+
+  return {
+    ...value,
+    conversationId,
+    name: value.name ?? value.groupdetail?.groupname ?? "Conversation",
+  } as Conversation;
+};
+
+const mergeUniqueUsers = (current: ChatUser[], incoming: ChatUser[]) => {
+  const users = new Map(current.map((user) => [user._id, user]));
+  incoming.forEach((user) => users.set(user._id, user));
+  return [...users.values()];
+};
+
+const mergeUniqueMessages = (
+  current: ChatMessage[],
+  incoming: ChatMessage[],
+) => {
+  const messages = new Map<string, ChatMessage>();
+  [...current, ...incoming].forEach((message) => {
+    if (message._id) messages.set(message._id, message);
+  });
+  return [...messages.values()];
+};
+
+const markMessagesSeenLocally = (
+  messages: ChatMessage[],
+  currentUserId?: string,
+) =>
+  messages.map((message) => {
+    if (
+      message.system ||
+      !currentUserId ||
+      message.sender === currentUserId ||
+      message.seenBy?.includes(currentUserId)
+    ) {
+      return message;
+    }
+
+    return {
+      ...message,
+      seenBy: [...(message.seenBy ?? []), currentUserId],
+    };
+  });
+
+const emitUnseenMessages = (
+  messages: ChatMessage[],
+  currentUserId?: string,
+) => {
+  const { socket } = getAuthSocketSession();
+  if (!socket || !currentUserId) return;
+
+  messages.forEach((message) => {
+    if (
+      !message.system &&
+      message.sender !== currentUserId &&
+      !message.seenBy?.includes(currentUserId)
+    ) {
+      socket.emit("msgseen", {
+        msgId: message._id,
+        senderId: message.sender,
+      });
+    }
+  });
+};
+
+const initialState = {
+  conversationError: null,
+  conversations: [] as Conversation[],
+  hasMoreMessages: false,
+  hasMoreSurroundingUsers: false,
+  isConversationLoading: false,
+  isMessageLoading: false,
+  isMoreMessagesLoading: false,
+  isMoreSurroundingUsersLoading: false,
+  isUsersLoading: false,
+  messageCursor: null,
+  messageError: null,
+  messages: [] as ChatMessage[],
+  selectedConversation: null,
+  surroundingUsersCursor: null,
+  typing: null,
+  users: [] as ChatUser[],
 };
 
 export const useChatStore = create<ChatState>((set, get) => ({
-  conversations: [],
-  selectedConversation: null,
-  typing: null,
-  isConversationLoading: false,
+  ...initialState,
 
   getConversation: async () => {
-    set({ isConversationLoading: true });
+    set({ conversationError: null, isConversationLoading: true });
     try {
-      const resdata = await getConversations();
-      set({ conversations: resdata.filtered });
+      const response = await getConversations();
+      set({ conversations: response.filtered ?? [] });
     } catch (error) {
-      console.log("Fetch conversation error:", error);
-      throwError(error);
+      const message = getErrorMessage(error, "Unable to load conversations");
+      set({ conversationError: message });
+      showErrorToast(message);
     } finally {
       set({ isConversationLoading: false });
     }
   },
 
+  getSurroundingUsers: async () => {
+    set({
+      hasMoreSurroundingUsers: false,
+      isMoreSurroundingUsersLoading: false,
+      isUsersLoading: true,
+      surroundingUsersCursor: null,
+      users: [],
+    });
+
+    try {
+      const response = await getAllUsers({ limit: USER_PAGE_LIMIT });
+      set({
+        hasMoreSurroundingUsers: Boolean(response.hasMore),
+        surroundingUsersCursor: response.nextCursor ?? null,
+        users: response.users ?? response.filtered ?? [],
+      });
+    } catch (error) {
+      showErrorToast(getErrorMessage(error, "Unable to load people"));
+    } finally {
+      set({ isUsersLoading: false });
+    }
+  },
+
+  loadMoreSurroundingUsers: async () => {
+    const {
+      hasMoreSurroundingUsers,
+      isMoreSurroundingUsersLoading,
+      isUsersLoading,
+      surroundingUsersCursor,
+    } = get();
+
+    if (
+      !hasMoreSurroundingUsers ||
+      !surroundingUsersCursor ||
+      isUsersLoading ||
+      isMoreSurroundingUsersLoading
+    ) {
+      return;
+    }
+
+    set({ isMoreSurroundingUsersLoading: true });
+    try {
+      const response = await getAllUsers({
+        cursor: surroundingUsersCursor,
+        limit: USER_PAGE_LIMIT,
+      });
+      set((state) => ({
+        hasMoreSurroundingUsers: Boolean(response.hasMore),
+        surroundingUsersCursor: response.nextCursor ?? null,
+        users: mergeUniqueUsers(
+          state.users,
+          response.users ?? response.filtered ?? [],
+        ),
+      }));
+    } catch (error) {
+      showErrorToast(getErrorMessage(error, "Unable to load more people"));
+    } finally {
+      set({ isMoreSurroundingUsersLoading: false });
+    }
+  },
+
+  createConversation: async (userId) => {
+    try {
+      const response = await createConversationRequest(userId);
+      const conversation = normalizeConversation(
+        response.conversation ?? response.newConversation ?? {},
+      );
+
+      if (conversation) {
+        get().refreshGroupMember("NEW_CONVERSATION", conversation);
+        get().setSelectedConversation(conversation);
+        return conversation;
+      }
+
+      await get().getConversation();
+      const created = get().conversations.find(
+        (item) => !item.isgroup && item.oruserId === userId,
+      );
+      if (created) get().setSelectedConversation(created);
+      return created ?? null;
+    } catch (error) {
+      showErrorToast(getErrorMessage(error, "Unable to start conversation"));
+      return null;
+    }
+  },
+
   setSelectedConversation: (selectedConversation) => {
-    set((state: any) => ({
+    set((state) => ({
       selectedConversation,
-      conversations: state.conversations.map((con: conversation) =>
-        con.conversationId === selectedConversation.conversationId
-          ? { ...con, unseenMsg: 0 }
-          : con,
+      conversations: state.conversations.map((conversation) =>
+        conversation.conversationId === selectedConversation.conversationId
+          ? { ...conversation, unseenMsg: 0 }
+          : conversation,
       ),
+      messageError: null,
     }));
-    return true;
+  },
+
+  clearSelectedConversation: (conversationId) => {
+    set((state) => ({
+      selectedConversation:
+        !conversationId ||
+        state.selectedConversation?.conversationId === conversationId
+          ? null
+          : state.selectedConversation,
+      typing: null,
+    }));
+  },
+
+  getMessages: async (conversationId) => {
+    const targetId =
+      conversationId ?? get().selectedConversation?.conversationId;
+    if (!targetId) return;
+
+    set({
+      hasMoreMessages: false,
+      isMessageLoading: true,
+      isMoreMessagesLoading: false,
+      messageCursor: null,
+      messageError: null,
+      messages: [],
+    });
+
+    try {
+      const response = await getMessagesRequest(targetId, {
+        limit: MESSAGE_PAGE_LIMIT,
+      });
+      if (get().selectedConversation?.conversationId !== targetId) return;
+
+      const incoming = response.messages ?? [];
+      const currentUserId = getAuthSocketSession().authUser?._id;
+      emitUnseenMessages(incoming, currentUserId);
+      set({
+        hasMoreMessages: Boolean(response.hasMore),
+        messageCursor: response.nextCursor ?? null,
+        messages: markMessagesSeenLocally(incoming, currentUserId),
+      });
+    } catch (error) {
+      const message = getErrorMessage(error, "Unable to load messages");
+      set({ messageError: message });
+      showErrorToast(message);
+    } finally {
+      set({ isMessageLoading: false });
+    }
+  },
+
+  loadOlderMessages: async () => {
+    const {
+      hasMoreMessages,
+      isMessageLoading,
+      isMoreMessagesLoading,
+      messageCursor,
+      selectedConversation,
+    } = get();
+
+    if (
+      !selectedConversation ||
+      !messageCursor ||
+      !hasMoreMessages ||
+      isMessageLoading ||
+      isMoreMessagesLoading
+    ) {
+      return;
+    }
+
+    const targetId = selectedConversation.conversationId;
+    set({ isMoreMessagesLoading: true });
+    try {
+      const response = await getMessagesRequest(targetId, {
+        cursor: messageCursor,
+        limit: MESSAGE_PAGE_LIMIT,
+      });
+      if (get().selectedConversation?.conversationId !== targetId) return;
+
+      const incoming = response.messages ?? [];
+      const currentUserId = getAuthSocketSession().authUser?._id;
+      emitUnseenMessages(incoming, currentUserId);
+      set((state) => ({
+        hasMoreMessages: Boolean(response.hasMore),
+        messageCursor: response.nextCursor ?? null,
+        messages: mergeUniqueMessages(
+          markMessagesSeenLocally(incoming, currentUserId),
+          state.messages,
+        ),
+      }));
+    } catch (error) {
+      showErrorToast(getErrorMessage(error, "Unable to load older messages"));
+    } finally {
+      set({ isMoreMessagesLoading: false });
+    }
+  },
+
+  sendMessage: async (data) => {
+    const selectedConversation = get().selectedConversation;
+    if (!selectedConversation) return false;
+
+    try {
+      const response = await sendMessageRequest(
+        selectedConversation.conversationId,
+        data,
+      );
+      if (response.newMessage) {
+        get().receiveMessage(response.newMessage);
+        get().setNmsgInCon(response.newMessage);
+      }
+      return true;
+    } catch (error) {
+      showErrorToast(getErrorMessage(error, "Unable to send message"));
+      return false;
+    }
+  },
+
+  receiveMessage: (message) => {
+    const { authUser, socket } = getAuthSocketSession();
+    const selectedConversation = get().selectedConversation;
+    if (selectedConversation?.conversationId !== message.conversationId) return;
+
+    set((state) => ({
+      messages: mergeUniqueMessages(state.messages, [
+        message.sender === authUser?._id
+          ? message
+          : {
+              ...message,
+              seenBy: authUser?._id
+                ? [...new Set([...(message.seenBy ?? []), authUser._id])]
+                : message.seenBy,
+            },
+      ]),
+    }));
+
+    if (!message.system && message.sender !== authUser?._id) {
+      socket?.emit("msgseen", {
+        msgId: message._id,
+        senderId: message.sender,
+      });
+    }
   },
 
   setNmsgInCon: (newMessage) => {
-    const authUser = useAuthStore.getState().authUser;
-    set((state: any) => {
+    const { authUser } = getAuthSocketSession();
+    set((state) => {
       const index = state.conversations.findIndex(
-        (con: conversation) => con.conversationId === newMessage.conversationId,
+        (conversation) =>
+          conversation.conversationId === newMessage.conversationId,
       );
       if (index === -1) return state;
-      const updatedConversations = [...state.conversations];
-      const [targetCon] = updatedConversations.splice(index, 1);
-      const isOwnMessage = newMessage.sender == authUser._id;
-      const isSystem = newMessage.system == true;
-      const selectedConId = state.selectedConversation?.conversationId;
-      const isOpenCon = selectedConId === newMessage.conversationId;
-      let nextUnseen = targetCon?.unseenMsg || 0;
 
-      if (isSystem) nextUnseen = 0;
-      else nextUnseen = isOwnMessage || isOpenCon ? 0 : nextUnseen + 1;
+      const conversations = [...state.conversations];
+      const [target] = conversations.splice(index, 1);
+      const isOpen =
+        state.selectedConversation?.conversationId ===
+        newMessage.conversationId;
+      const isOwn = newMessage.sender === authUser?._id;
+      const unseenMsg =
+        newMessage.system || isOwn || isOpen ? 0 : (target.unseenMsg ?? 0) + 1;
 
-      const updatedTargetCon = {
-        ...targetCon,
-        lastmessage: newMessage,
-        unseenMsg: nextUnseen,
-      };
-      updatedConversations.unshift(updatedTargetCon);
-      return { conversations: updatedConversations };
+      conversations.unshift({ ...target, lastmessage: newMessage, unseenMsg });
+      return { conversations };
     });
   },
 
-  setIsTyping: (selectedConversation) => {
-    const socket = useAuthStore.getState().socket;
-    socket?.emit("istyping", {
-      receiverId: selectedConversation.conversationId,
+  setIsTyping: (conversation) => {
+    getAuthSocketSession().socket?.emit("istyping", {
+      receiverId: conversation.conversationId,
     });
   },
 
-  setTyping: (userId) => {
-    set({ typing: userId });
-  },
-
-  setStopTyping: (selectedConversation) => {
-    const socket = useAuthStore.getState().socket;
-    socket?.emit("StopTyping", {
-      receiverId: selectedConversation.conversationId,
+  setStopTyping: (conversation) => {
+    getAuthSocketSession().socket?.emit("StopTyping", {
+      receiverId: conversation.conversationId,
     });
   },
 
-  setUpdatedMessage: (message) => {
-    const authUser = useAuthStore.getState().authUser;
+  setTyping: (typing) => set({ typing }),
 
-    set((state: any) => ({
-      conversations: state.conversations.map((con: any) => {
-        if (con.conversationId !== message.conversationId) return con;
+  setMsgSeen: (payload) => {
+    const msgId = typeof payload === "string" ? payload : payload.msgId;
+    if (!msgId) return;
+
+    set((state) => ({
+      messages: state.messages.map((message) => {
+        if (message._id !== msgId || typeof payload === "string") {
+          return message;
+        }
+
         return {
-          ...con,
-          lastMessage: {
-            ...con.lastMessage,
-            text:
-              message?.reacted !== con.lastMessage?.reacted
-                ? con.isgroup
-                  ? authUser._id === message?.userId
-                    ? `You reacted ${message?.reacted} to '${message?.text}'`
-                    : `${con.groupdetail.membersDetail[message.userId].fullname} reacted ${message?.reacted} to '${message?.text}'`
-                  : authUser._id == message?.userId
-                    ? `You reacted ${message?.reacted} to '${message?.text}'`
-                    : `${con.name} reacted ${message?.reacted} to '${message?.text}'`
-                : message?.text,
-          },
+          ...message,
+          isSeen:
+            typeof payload.isSeen === "boolean"
+              ? payload.isSeen
+              : message.isSeen,
+          seenBy:
+            payload.seenBy ??
+            (payload.userId
+              ? [...new Set([...(message.seenBy ?? []), payload.userId])]
+              : message.seenBy),
         };
       }),
     }));
   },
 
-  setDeletedMessageForSlider: (message) => {
-    const authUser = useAuthStore.getState().authUser;
-
-    set((state: any) => ({
-      conversations: state.conversations.map((con: any) => {
+  setUpdatedMessage: (message) => {
+    const { authUser } = getAuthSocketSession();
+    set((state) => ({
+      conversations: state.conversations.map((conversation) => {
         if (
-          con.conversationId == message.conversationId &&
-          message.deletedForEveryone
+          conversation.conversationId !== message.conversationId ||
+          !conversation.lastmessage
         ) {
-          return {
-            ...con,
-            lastmessage: {
-              ...con.lastmessage,
-              text:
-                authUser._id == message.sender
-                  ? "You deleted this message"
-                  : "This message was deleted",
-              reacted: message.reacted,
-              image: message.image,
-            },
-            unseenMsg: con.unseenMsg - 1 >= 0 ? con.unseenMsg - 1 : 0,
-          };
-        } else return con;
+          return conversation;
+        }
+
+        const memberName = message.userId
+          ? conversation.groupdetail?.membersDetail?.[message.userId]?.fullname
+          : undefined;
+        const actor =
+          authUser?._id === message.userId
+            ? "You"
+            : (memberName ?? conversation.name);
+        const text =
+          message.reacted !== conversation.lastmessage.reacted
+            ? `${actor} reacted ${message.reacted ?? ""} to '${message.text ?? ""}'`
+            : (message.text ?? conversation.lastmessage.text);
+
+        return {
+          ...conversation,
+          lastmessage: { ...conversation.lastmessage, text },
+        };
       }),
     }));
   },
 
-  refreshGroupMember: (type, conversation) => {
-    set((state: any) => {
+  setReactedMsg: (message) => {
+    set((state) => ({
+      messages: state.messages.map((item) =>
+        item._id === message._id ? { ...item, reacted: message.reacted } : item,
+      ),
+    }));
+  },
+
+  setDeletedMessageForSlider: (message) => {
+    const { authUser } = getAuthSocketSession();
+    if (!message.deletedForEveryone) return;
+
+    set((state) => ({
+      conversations: state.conversations.map((conversation) =>
+        conversation.conversationId === message.conversationId
+          ? {
+              ...conversation,
+              lastmessage: {
+                ...(conversation.lastmessage ?? message),
+                image: message.image,
+                reacted: message.reacted,
+                text:
+                  authUser?._id === message.sender
+                    ? "You deleted this message"
+                    : "This message was deleted",
+              },
+              unseenMsg: Math.max((conversation.unseenMsg ?? 0) - 1, 0),
+            }
+          : conversation,
+      ),
+    }));
+  },
+
+  setDeletedMessage: (message) => {
+    const currentUserId = getAuthSocketSession().authUser?._id;
+    set((state) => {
+      if (message.deletedForEveryone) {
+        return {
+          messages: state.messages.map((item) =>
+            item._id === message._id
+              ? {
+                  ...item,
+                  image: message.image,
+                  reacted: message.reacted,
+                  text:
+                    currentUserId === message.sender
+                      ? "You deleted this message"
+                      : "This message was deleted",
+                }
+              : item,
+          ),
+        };
+      }
+
+      if (currentUserId && message.deletedFor?.includes(currentUserId)) {
+        return {
+          messages: state.messages.filter((item) => item._id !== message._id),
+        };
+      }
+      return state;
+    });
+  },
+
+  setClearChat: (conversation) => {
+    const conversationId = String(
+      conversation.conversationId ?? conversation._id ?? "",
+    );
+    if (!conversationId) return;
+
+    set((state) => ({
+      conversations: state.conversations.map((item) =>
+        item.conversationId === conversationId
+          ? { ...item, lastmessage: undefined, unseenMsg: 0 }
+          : item,
+      ),
+      ...(state.selectedConversation?.conversationId === conversationId
+        ? {
+            hasMoreMessages: false,
+            messageCursor: null,
+            messages: [],
+          }
+        : {}),
+    }));
+  },
+
+  setConBgimage: (conversationId, bgImage) => {
+    set((state) => ({
+      conversations: state.conversations.map((conversation) =>
+        conversation.conversationId === conversationId
+          ? { ...conversation, bgImage }
+          : conversation,
+      ),
+      selectedConversation:
+        state.selectedConversation?.conversationId === conversationId
+          ? { ...state.selectedConversation, bgImage }
+          : state.selectedConversation,
+    }));
+  },
+
+  setGroupUpdation: (group) => {
+    set((state) => {
+      const update = (conversation: Conversation) =>
+        conversation.conversationId === group._id
+          ? {
+              ...conversation,
+              groupdetail: {
+                groupIcon:
+                  group.groupIcon ?? conversation.groupdetail?.groupIcon,
+                groupname:
+                  group.groupname ??
+                  conversation.groupdetail?.groupname ??
+                  conversation.name,
+                membersDetail: conversation.groupdetail?.membersDetail ?? {},
+              },
+            }
+          : conversation;
+
+      return {
+        conversations: state.conversations.map(update),
+        selectedConversation: state.selectedConversation
+          ? update(state.selectedConversation)
+          : null,
+      };
+    });
+  },
+
+  refreshGroupMember: (type, incoming) => {
+    const normalized = normalizeConversation(incoming);
+    const incomingId = normalized?.conversationId;
+    if (!incomingId) return;
+
+    set((state) => {
       let conversations = [...state.conversations];
       let selectedConversation = state.selectedConversation;
+      const index = conversations.findIndex(
+        (conversation) => conversation.conversationId === incomingId,
+      );
 
-      const getId = (con: any) =>
-        con?.conversationId?.toString?.() ??
-        con?.conversationId ??
-        con?._id?.toString?.() ??
-        con?._id;
+      if (type === "NEW_CONVERSATION") {
+        const existing = index >= 0 ? conversations.splice(index, 1)[0] : null;
+        conversations.unshift({ ...existing, ...normalized });
+      }
 
-      const incomingId = getId(conversation);
-
-      switch (type) {
-        case "NEW_CONVERSATION": {
-          if (!incomingId) break;
-          const existingIndex = conversations.findIndex(
-            (con: any) => getId(con) === incomingId,
-          );
-          const normalizedConversation = conversation?.conversationId
-            ? conversation
-            : { ...conversation, conversationId: incomingId };
-          if (existingIndex !== -1) {
-            const existing = conversations[existingIndex];
-            conversations.splice(existingIndex, 1);
-            conversation.unshift({ ...existing, ...normalizedConversation });
-          } else conversations = [normalizedConversation, ...conversations];
-          break;
-        }
-
-        case "UPDATE_MEMBERS": {
-          if (!incomingId) break;
-          conversations = conversations.map((con) =>
-            getId(con) === incomingId
-              ? {
-                  ...con,
-                  groupdetail: conversation.groupdetail ?? con.groupdetail,
-                }
-              : con,
-          );
-          if (
-            selectedConversation &&
-            getId(selectedConversation) === incomingId
-          ) {
-            selectedConversation = {
-              ...selectedConversation,
-              groupdetail:
-                conversation.groupdetail ?? selectedConversation.groupdetail,
-            };
-          }
-          break;
-        }
-
-        case "DELETE_CONVERSATION":
-        case "EXIT_GROUP": {
-          if (!incomingId) break;
-          conversations = conversations.filter(
-            (con) => getId(con) !== incomingId,
-          );
-
-          if (
-            selectedConversation &&
-            getId(selectedConversation) === incomingId
-          ) {
-            selectedConversation = null;
-          }
-          break;
+      if (type === "UPDATE_MEMBERS") {
+        conversations = conversations.map((conversation) =>
+          conversation.conversationId === incomingId
+            ? {
+                ...conversation,
+                groupdetail: normalized.groupdetail ?? conversation.groupdetail,
+              }
+            : conversation,
+        );
+        if (selectedConversation?.conversationId === incomingId) {
+          selectedConversation = {
+            ...selectedConversation,
+            groupdetail:
+              normalized.groupdetail ?? selectedConversation.groupdetail,
+          };
         }
       }
+
+      if (type === "DELETE_CONVERSATION" || type === "EXIT_GROUP") {
+        conversations = conversations.filter(
+          (conversation) => conversation.conversationId !== incomingId,
+        );
+        if (selectedConversation?.conversationId === incomingId) {
+          selectedConversation = null;
+        }
+      }
+
       return { conversations, selectedConversation };
     });
   },
+
+  resetChatState: () => set(initialState),
 }));
