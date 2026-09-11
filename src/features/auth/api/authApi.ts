@@ -19,9 +19,23 @@ export const requestSignupOtp = async (data: SignupFormData) => {
 };
 
 export const verifySignupOtpRequest = async (data: VerifySignup) => {
-  const response = await api.post("/auth/signup/verify", { data });
+  const response = await api.post("/auth/signup/verify", {
+    ...data,
+    location: data.location,
+  });
   return response.data;
 };
+
+export const scanQrLoginApi = async (data: { requestId: string; qrToken: string }) => {
+  const response = await api.post("/auth/qr-login/scan", data);
+  return response.data;
+};
+
+export const completeQrLoginApi = async (data: { requestId: string; browserSecret: string }) => {
+  const response = await api.post("/auth/qr-login/complete", data);
+  return response.data;
+};
+
 
 export const loginuser = async (data: LoginFormData) => {
   const response = await api.post("/auth/login", data);
@@ -86,3 +100,12 @@ export const deleteAccount = async (data:DeleteAccount) => {
   });
   return response.data;
 };
+
+export const updateMediaSettings = async (data: {
+  autoDownload: boolean;
+  maxAutoDownloadBytes: number;
+}) => {
+  const response = await api.put("/user/media-settings", data);
+  return response.data;
+};
+

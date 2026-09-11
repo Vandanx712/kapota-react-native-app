@@ -1,345 +1,429 @@
-import { useRef } from "react";
+import React, { memo } from "react";
+import { StyleSheet, Text, View, Pressable } from "react-native";
+import { Image } from "expo-image";
 import dayjs from "dayjs";
-import { Check, CheckCheck } from "lucide-react-native";
-import { Image, Pressable, StyleSheet, Text, View } from "react-native";
-
 import { useTheme } from "@/theme/ThemeProvider";
-import { radius, typography } from "@/theme/tokens";
 import type { ChatMessage, Conversation } from "../types/chat.types";
+import { MessageStatus } from "./MessageStatus";
+import { MediaAttachment } from "./MediaAttachment";
 
-type Props = {
+export interface MessageBubbleProps {
+  message: ChatMessage;
   conversation: Conversation;
   currentUserId?: string;
-  isSelected: boolean;
-  message: ChatMessage;
-  onLongPress: (message: ChatMessage) => void;
-  onPress: (message: ChatMessage) => void;
-  selectionMode: boolean;
-};
+  isSelected?: boolean;
+  selectionMode?: boolean;
+  onPress?: (message: ChatMessage) => void;
+  onLongPress?: (message: ChatMessage) => void;
+  onReactionPress?: (message: ChatMessage) => void;
+}
 
-const senderColorIndex = (senderId: string | undefined, colorCount: number) =>
-  [...String(senderId || "")].reduce(
-    (sum, character) => sum + character.charCodeAt(0),
-    0,
-  ) % colorCount;
+function areMessageBubblePropsEqual(
+  prev: MessageBubbleProps,
+  next: MessageBubbleProps
+): boolean {
+  return (
+    prev.message._id === next.message._id &&
+    prev.message.text === next.message.text &&
+    prev.message.reacted === next.message.reacted &&
+    prev.message.isSeen === next.message.isSeen &&
+    prev.message.isEdited === next.message.isEdited &&
+    prev.message.deletedForEveryone === next.message.deletedForEveryone &&
+    prev.isSelected === next.isSelected &&
+    prev.selectionMode === next.selectionMode &&
+    prev.currentUserId === next.currentUserId
+  );
+}
 
-export default function MessageBubble({
+export const MessageBubble = memo(function MessageBubble({
+  message,
   conversation,
   currentUserId,
-  isSelected,
-  message,
-  onLongPress,
+  isSelected = false,
   onPress,
-  selectionMode,
-}: Props) {
+  onLongPress,
+  onReactionPress,
+}: MessageBubbleProps) {
   const { theme } = useTheme();
   const colors = theme.colors;
-  const styles = createStyles(colors);
-  const didLongPressRef = useRef(false);
+
   const isOwn = message.sender === currentUserId;
-  const member = conversation.groupdetail?.membersDetail?.[message.sender];
-  const showGroupSender = Boolean(conversation.isgroup && !isOwn);
-  const isRead =
-    Boolean(message.isSeen) ||
-    Boolean(message.seenBy?.some((userId) => userId !== message.sender));
-  const senderColors = [
-    colors.primaryContainer,
-    colors.tertiary,
-    colors.success,
-    colors.highlight,
-    colors.secondary,
-  ];
-  const senderColor =
-    senderColors[senderColorIndex(message.sender, senderColors.length)];
+  const isGroup = Boolean(conversation.isgroup);
+  const member = isGroup ? conversation.groupdetail?.membersDetail?.[message.sender] : null;
+  const senderName = member?.fullname || "Member";
 
   if (message.system) {
     return (
       <View style={styles.systemRow}>
-        <View style={styles.systemBubble}>
-          <Text style={styles.systemText}>
-            {message.text ?? "Conversation updated"}
+        <View
+          style={[
+            styles.systemPill,
+            { backgroundColor: colors.surfaceContainerHighest },
+          ]}
+        >
+          <Text
+            style={[styles.systemText, { color: colors.onSurfaceVariant }]}
+          >
+            {message.text || "System notice"}
           </Text>
         </View>
       </View>
     );
   }
 
-  const handlePress = () => {
-    if (didLongPressRef.current) {
-      didLongPressRef.current = false;
-      return;
-    }
-    if (selectionMode) onPress(message);
-  };
+  const isSeenByOther = Boolean(
+    message.isSeen ||
+    message.seenBy?.some((userId) => userId !== message.sender),
+  );
 
-  const handleLongPress = () => {
-    didLongPressRef.current = true;
-    onLongPress(message);
-  };
-
-  const senderAvatar = member?.profilePic?.url;
+  const formattedTime = message.createdAt
+    ? dayjs(message.createdAt).format("h:mm A")
+    : "";
 
   return (
     <Pressable
-      delayLongPress={260}
-      onLongPress={handleLongPress}
-      onPress={handlePress}
-      style={[styles.tapArea, isSelected && styles.selectedRow]}
+      onPress={() => onPress?.(message)}
+      onLongPress={() => onLongPress?.(message)}
+      delayLongPress={220}
+      style={[
+        styles.container,
+        isSelected && { backgroundColor: "rgba(91, 76, 240, 0.14)" },
+      ]}
     >
       <View
         style={[
-          styles.messageRow,
-          isOwn ? styles.messageRowOwn : styles.messageRowIncoming,
+          styles.bubbleWrapper,
+          isOwn ? styles.bubbleWrapperOwn : styles.bubbleWrapperOther,
         ]}
       >
-        {showGroupSender && (
-          <View style={styles.avatarColumn}>
-            {senderAvatar ? (
-              <Image
-                source={{ uri: senderAvatar }}
-                style={styles.senderAvatar}
-              />
-            ) : (
-              <View style={[styles.senderAvatar, styles.avatarFallback]}>
-                <Text style={styles.avatarInitial}>
-                  {(member?.fullname ?? "?").charAt(0).toUpperCase()}
-                </Text>
-              </View>
-            )}
-          </View>
-        )}
-
         <View
           style={[
-            styles.messageColumn,
-            isOwn ? styles.messageColumnOwn : styles.messageColumnIncoming,
+            styles.bubble,
+            isOwn
+              ? [
+                styles.bubbleOwn,
+                {
+                  backgroundColor: colors.primary,
+                },
+              ]
+              : [
+                styles.bubbleOther,
+                {
+                  backgroundColor: colors.surfaceContainerHigh,
+                },
+              ],
           ]}
         >
-          {showGroupSender && (
+          {/* Sender name in group */}
+          {isGroup && !isOwn && (
             <Text
               numberOfLines={1}
-              style={[styles.senderName, { color: senderColor }]}
+              style={[styles.groupSenderName, { color: colors.primary }]}
             >
-              {member?.fullname ?? "Unknown"}
+              {senderName}
             </Text>
           )}
 
-          <View
-            style={[
-              styles.bubble,
-              isOwn ? styles.bubbleOwn : styles.bubbleIncoming,
-            ]}
-          >
-            {!!message.image?.url && (
-              <Image
-                resizeMode="cover"
-                source={{ uri: message.image.url }}
-                style={styles.messageImage}
-              />
-            )}
-            {!!message.text && (
-              <Text
-                style={[
-                  styles.messageText,
-                  isOwn && styles.messageTextOwn,
-                  message.image && styles.textWithImage,
-                  message.deletedForEveryone && styles.deletedText,
-                ]}
-              >
-                {message.text}
-              </Text>
-            )}
-
-            <View style={styles.metaRow}>
-              <Text style={[styles.timestamp, isOwn && styles.timestampOwn]}>
-                {message.createdAt
-                  ? dayjs(message.createdAt).format("h:mm A")
-                  : ""}
-              </Text>
-              {isOwn &&
-                (isRead ? (
-                  <CheckCheck
-                    color={colors.onPrimary}
-                    size={15}
-                    strokeWidth={2.1}
-                  />
-                ) : (
-                  <Check color={colors.onPrimary} size={15} strokeWidth={2.1} />
-                ))}
-            </View>
-          </View>
-
-          {!!message.reacted && (
+          {/* Quoted reply inside bubble */}
+          {message.replyTo && (
             <View
               style={[
-                styles.reactionPill,
-                isOwn ? styles.reactionOwn : styles.reactionIncoming,
+                styles.replyQuote,
+                {
+                  backgroundColor: isOwn
+                    ? "rgba(0,0,0,0.12)"
+                    : colors.surfaceContainerHighest,
+                  borderLeftColor: isOwn ? colors.onPrimary : colors.primary,
+                },
               ]}
             >
-              <Text style={styles.reactionText}>{message.reacted}</Text>
+              <Text
+                numberOfLines={1}
+                style={[
+                  styles.replySender,
+                  { color: isOwn ? colors.onPrimary : colors.primary },
+                ]}
+              >
+                Reply
+              </Text>
+              <Text
+                numberOfLines={2}
+                style={[
+                  styles.replySnippet,
+                  { color: isOwn ? colors.onPrimary : colors.onSurfaceVariant },
+                ]}
+              >
+                {typeof message.replyTo === "object"
+                  ? (message.replyTo as any)?.text || "Quoted message"
+                  : "Quoted message"}
+              </Text>
             </View>
           )}
+
+          {/* Shared Post attachment */}
+          {message.post && !message.post.unavailable && (
+            <View
+              style={[
+                styles.sharedPostCard,
+                {
+                  backgroundColor: isOwn
+                    ? "rgba(0,0,0,0.15)"
+                    : colors.surfaceContainerHighest,
+                },
+              ]}
+            >
+              {message.post.image?.url && (
+                <Image
+                  source={{ uri: message.post.image.url }}
+                  style={styles.sharedPostImage}
+                  contentFit="cover"
+                />
+              )}
+              <View style={styles.sharedPostInfo}>
+                <Text
+                  numberOfLines={1}
+                  style={[
+                    styles.sharedPostAuthor,
+                    { color: isOwn ? colors.onPrimary : colors.onSurface },
+                  ]}
+                >
+                  {message.post.user?.fullname || "Kapota Post"}
+                </Text>
+                {message.post.caption && (
+                  <Text
+                    numberOfLines={2}
+                    style={[
+                      styles.sharedPostCaption,
+                      { color: isOwn ? colors.onPrimary : colors.onSurfaceVariant },
+                    ]}
+                  >
+                    {message.post.caption}
+                  </Text>
+                )}
+              </View>
+            </View>
+          )}
+
+          {/* Media attachment */}
+          {message.media ? (
+            <MediaAttachment
+              media={message.media}
+              isOwn={isOwn}
+              reserveTime={!message.text}
+            />
+          ) : message.image?.url ? (
+            <Image
+              source={{ uri: message.image.url }}
+              style={styles.messageImage}
+              contentFit="cover"
+            />
+          ) : null}
+
+          {/* Message Text */}
+          {message.text ? (
+            <Text
+              style={[
+                styles.messageText,
+                {
+                  color: isOwn ? colors.onPrimary : colors.onSurface,
+                },
+                message.deletedForEveryone && styles.deletedText,
+              ]}
+            >
+              {message.text}
+              {message.isEdited && (
+                <Text
+                  style={{
+                    fontSize: 11,
+                    fontStyle: "italic",
+                    color: isOwn ? "rgba(255,255,255,0.7)" : colors.onSurfaceVariant,
+                  }}
+                >
+                  {" "}(edited)
+                </Text>
+              )}
+            </Text>
+          ) : null}
+
+          {/* Bottom metadata row (time + delivery ticks) */}
+          <View style={styles.metaRow}>
+            <Text
+              style={[
+                styles.timeText,
+                {
+                  color: isOwn
+                    ? "rgba(255,255,255,0.75)"
+                    : colors.onSurfaceVariant,
+                },
+              ]}
+            >
+              {formattedTime}
+            </Text>
+            {isOwn && (
+              <MessageStatus
+                isSeen={isSeenByOther}
+                color="rgba(255,255,255,0.7)"
+                activeColor="#FFFFFF"
+                size={14}
+              />
+            )}
+          </View>
         </View>
+
+        {/* Reaction badge */}
+        {message.reacted ? (
+          <Pressable
+            onPress={() => onReactionPress?.(message)}
+            style={[
+              styles.reactionBadge,
+              isOwn ? styles.reactionOwn : styles.reactionOther,
+              {
+                backgroundColor: colors.surfaceContainerHighest,
+                borderColor: colors.outlineVariant,
+              },
+            ]}
+          >
+            <Text style={styles.reactionText}>{message.reacted}</Text>
+          </Pressable>
+        ) : null}
       </View>
     </Pressable>
   );
-}
+}, areMessageBubblePropsEqual);
 
-const createStyles = (colors: ReturnType<typeof useTheme>["theme"]["colors"]) =>
-  StyleSheet.create({
-    avatarColumn: {
-      justifyContent: "flex-start",
-      marginRight: 6,
-      paddingTop: 18,
-      width: 30,
-    },
-    avatarFallback: {
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    avatarInitial: {
-      color: colors.onSurface,
-      fontSize: 11,
-      fontWeight: "700",
-    },
-    bubble: {
-      borderRadius: 9,
-      maxWidth: "100%",
-      minWidth: 74,
-      paddingBottom: 4,
-      paddingHorizontal: 8,
-      paddingTop: 6,
-    },
-    bubbleIncoming: {
-      backgroundColor: colors.surfaceContainerHigh,
-      borderTopLeftRadius: 3,
-    },
-    bubbleOwn: {
-      backgroundColor: colors.primary,
-      borderTopRightRadius: 3,
-    },
-    deletedText: {
-      fontStyle: "italic",
-      opacity: 0.76,
-    },
-    messageColumn: {
-      maxWidth: "82%",
-      minWidth: 0,
-    },
-    messageColumnIncoming: {
-      alignItems: "flex-start",
-    },
-    messageColumnOwn: {
-      alignItems: "flex-end",
-    },
-    messageImage: {
-      borderRadius: 6,
-      height: 180,
-      marginHorizontal: -4,
-      marginTop: -2,
-      maxWidth: 260,
-      width: 236,
-    },
-    messageRow: {
-      flexDirection: "row",
-      paddingHorizontal: 8,
-    },
-    messageRowIncoming: {
-      justifyContent: "flex-start",
-    },
-    messageRowOwn: {
-      justifyContent: "flex-end",
-    },
-    messageText: {
-      ...typography.bodyLg,
-      color: colors.onSurface,
-      fontSize: 15,
-      lineHeight: 20,
-    },
-    messageTextOwn: {
-      color: colors.onPrimary,
-    },
-    metaRow: {
-      alignItems: "center",
-      alignSelf: "flex-end",
-      flexDirection: "row",
-      gap: 2,
-      height: 15,
-      marginLeft: 16,
-      marginTop: 1,
-    },
-    reactionIncoming: {
-      marginLeft: 6,
-    },
-    reactionOwn: {
-      marginRight: 6,
-    },
-    reactionPill: {
-      alignItems: "center",
-      backgroundColor: colors.surfaceContainerHighest,
-      borderColor: colors.outlineVariant,
-      borderRadius: radius.full,
-      borderWidth: 1,
-      justifyContent: "center",
-      marginTop: -3,
-      minHeight: 24,
-      minWidth: 32,
-      paddingHorizontal: 6,
-      zIndex: 2,
-    },
-    reactionText: {
-      fontSize: 15,
-      lineHeight: 19,
-    },
-    selectedRow: {
-      backgroundColor: "rgba(37, 211, 102, 0.17)",
-    },
-    senderAvatar: {
-      backgroundColor: colors.surfaceContainerHighest,
-      borderRadius: radius.full,
-      height: 28,
-      width: 28,
-    },
-    senderName: {
-      fontSize: 12,
-      fontWeight: "700",
-      lineHeight: 16,
-      marginBottom: 2,
-      marginLeft: 2,
-      maxWidth: 210,
-    },
-    systemBubble: {
-      backgroundColor: colors.surfaceContainerHighest,
-      borderRadius: 7,
-      maxWidth: "82%",
-      paddingHorizontal: 10,
-      paddingVertical: 5,
-    },
-    systemRow: {
-      alignItems: "center",
-      paddingHorizontal: 20,
-      paddingVertical: 6,
-    },
-    systemText: {
-      color: colors.onSurfaceVariant,
-      fontSize: 12,
-      lineHeight: 16,
-      textAlign: "center",
-    },
-    tapArea: {
-      paddingVertical: 2,
-      width: "100%",
-    },
-    textWithImage: {
-      marginTop: 6,
-    },
-    timestamp: {
-      color: colors.outline,
-      fontSize: 10,
-      lineHeight: 13,
-    },
-    timestampOwn: {
-      color: colors.onPrimary,
-      opacity: 0.76,
-    },
-  });
+export default MessageBubble;
+
+const styles = StyleSheet.create({
+  container: {
+    paddingHorizontal: 14,
+    paddingVertical: 5,
+    marginVertical: 2,
+    width: "100%",
+  },
+  systemRow: {
+    alignItems: "center",
+    justifyContent: "center",
+    marginVertical: 8,
+    paddingHorizontal: 24,
+  },
+  systemPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  systemText: {
+    fontSize: 12,
+    textAlign: "center",
+    fontWeight: "500",
+  },
+  bubbleWrapper: {
+    flexDirection: "column",
+    maxWidth: "80%",
+    position: "relative",
+  },
+  bubbleWrapperOwn: {
+    alignSelf: "flex-end",
+    alignItems: "flex-end",
+  },
+  bubbleWrapperOther: {
+    alignSelf: "flex-start",
+    alignItems: "flex-start",
+  },
+  bubble: {
+    paddingHorizontal: 10,
+    paddingTop: 6,
+    paddingBottom: 5,
+    borderRadius: 16,
+    minWidth: 70,
+  },
+  bubbleOwn: {
+    borderBottomRightRadius: 3,
+  },
+  bubbleOther: {
+    borderBottomLeftRadius: 3,
+  },
+  groupSenderName: {
+    fontSize: 12,
+    fontWeight: "700",
+    marginBottom: 2,
+  },
+  replyQuote: {
+    borderLeftWidth: 3,
+    borderRadius: 6,
+    padding: 6,
+    marginBottom: 6,
+  },
+  replySender: {
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  replySnippet: {
+    fontSize: 12,
+    marginTop: 1,
+  },
+  sharedPostCard: {
+    borderRadius: 10,
+    overflow: "hidden",
+    marginBottom: 6,
+    width: 220,
+  },
+  sharedPostImage: {
+    width: "100%",
+    height: 140,
+  },
+  sharedPostInfo: {
+    padding: 8,
+  },
+  sharedPostAuthor: {
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  sharedPostCaption: {
+    fontSize: 11,
+    marginTop: 2,
+  },
+  messageImage: {
+    width: 230,
+    height: 180,
+    borderRadius: 10,
+    marginBottom: 4,
+  },
+  messageText: {
+    fontSize: 15,
+    lineHeight: 20,
+  },
+  deletedText: {
+    fontStyle: "italic",
+    opacity: 0.8,
+  },
+  metaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    alignSelf: "flex-end",
+    gap: 3,
+    marginTop: 2,
+  },
+  timeText: {
+    fontSize: 10,
+    fontWeight: "500",
+  },
+  reactionBadge: {
+    position: "absolute",
+    bottom: -10,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 12,
+    borderWidth: 1,
+    zIndex: 2,
+  },
+  reactionOwn: {
+    right: 8,
+  },
+  reactionOther: {
+    left: 8,
+  },
+  reactionText: {
+    fontSize: 13,
+  },
+});

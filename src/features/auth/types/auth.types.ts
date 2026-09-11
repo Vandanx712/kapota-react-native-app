@@ -3,6 +3,11 @@ export interface SplashStatusItem {
   label: string;
 }
 
+export interface MediaSettings {
+  autoDownload?: boolean;
+  maxAutoDownloadBytes?: number;
+}
+
 export interface AuthUser {
   _id: string;
   bio?: string;
@@ -14,7 +19,9 @@ export interface AuthUser {
     key?: string;
     url: string;
   };
+  mediaSettings?: MediaSettings;
 }
+
 
 export interface VerifySignup {
   fullname: string;

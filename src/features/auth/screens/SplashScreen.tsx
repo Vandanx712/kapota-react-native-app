@@ -8,13 +8,13 @@ import SplashBackground from "@/features/auth/components/SplashBackground";
 import { KapotaLogo } from "@/features/auth/components/KapotaLogo";
 import { ProgressBar } from "@/features/auth/components/ProgressBar";
 
-const SPLASH_DURATION_MS = 4000;
+const SPLASH_DURATION_MS = 2200;
 const LOGO_SIZE = 216;
 
 export default function SplashScreen() {
   useEffect(() => {
     const timer = setTimeout(() => {
-      router.replace("/(auth)/login");
+      router.replace("/(auth)/welcome");
     }, SPLASH_DURATION_MS);
 
     return () => clearTimeout(timer);

@@ -1,27 +1,44 @@
-import { Key, Laptop2, LogOut, RefreshCw, ShieldCheck, Trash2 } from "lucide-react-native";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import {
   ActivityIndicator,
+  Modal,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  Check,
+  Globe,
+  Key,
+  Laptop,
+  LogOut,
+  RefreshCw,
+  Shield,
+  Smartphone,
+  Trash2,
+  X,
+} from "lucide-react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { router } from "expo-router";
 
-import { useAuthStore } from "@/features/auth/store/auth.store";
-import ActionButton from "@/features/settings/components/ActionButton";
-import ConfirmModal from "@/features/settings/components/ConfirmModal";
-import SectionShell from "@/features/settings/components/SectionShell";
-import SessionCard from "@/features/settings/components/SessionCard";
 import { useTheme } from "@/theme/ThemeProvider";
 import { radius, spacing, typography } from "@/theme/tokens";
+import { useAuthStore } from "@/features/auth/store/auth.store";
+import { AppHeader } from "@/shared/ui/AppHeader";
+import { PrimaryButton } from "@/shared/ui/PrimaryButton";
+import { ConfirmationDialog } from "@/shared/ui/ConfirmationDialog";
+import { EmptyState } from "@/shared/ui/EmptyState";
+import { showErrorToast, showSuccessToast } from "@/utils/toast";
+import dayjs from "dayjs";
 
 export default function AccountSectionScreen() {
+  const insets = useSafeAreaInsets();
   const { theme } = useTheme();
   const colors = theme.colors;
-  const styles = createStyles(colors);
+
   const {
     activeSessions,
     canManageDevices,
@@ -35,285 +52,498 @@ export default function AccountSectionScreen() {
     isDeletingAccount,
   } = useAuthStore();
 
-  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [deletePassword, setDeletePassword] = useState("");
+  const [sessionToLogout, setSessionToLogout] = useState<any | null>(null);
 
   useEffect(() => {
-    fetchActiveSessions();
-  }, []);
+    void fetchActiveSessions();
+  }, [fetchActiveSessions]);
 
   const otherSessionsCount = useMemo(
-    () => activeSessions.filter((session) => !session.isCurrent).length,
+    () => activeSessions.filter((s: any) => !s.isCurrent).length,
     [activeSessions],
   );
 
   const handleDeleteAccount = async () => {
-    if (!deletePassword.trim()) return;
-    const deleted = await deleteAccount({ password: deletePassword });
-    if (deleted) {
-      setDeleteModalOpen(false);
-      setDeletePassword("");
+    if (!deletePassword.trim()) {
+      showErrorToast("Please enter your password");
+      return;
     }
+
+    await deleteAccount({ password: deletePassword });
+    setDeleteModalVisible(false);
+    setDeletePassword("");
+  };
+
+  const getDeviceIcon = (deviceName = "") => {
+    const lower = deviceName.toLowerCase();
+    if (lower.includes("mobile") || lower.includes("android") || lower.includes("ios")) {
+      return Smartphone;
+    }
+    if (lower.includes("mac") || lower.includes("windows") || lower.includes("linux")) {
+      return Laptop;
+    }
+    return Globe;
   };
 
   return (
-    <SafeAreaView style={styles.screen} edges={["top", "left", "right"]}>
-      <SectionShell
-        icon={Key}
-        title="Account"
-        description="Security notifications, account info"
+    <View
+      style={[
+        styles.screen,
+        {
+          backgroundColor: colors.background,
+          paddingTop: insets.top,
+        },
+      ]}
+    >
+      <AppHeader title="Account" showBack />
+
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
       >
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.content}
-        >
-          <View style={styles.card}>
-            <View style={styles.cardHeader}>
-              <View style={styles.cardIcon}>
-                <Laptop2 size={22} color={colors.primaryContainer} />
-              </View>
-              <View style={styles.cardCopy}>
-                <Text style={styles.cardTitle}>Active devices</Text>
-                <Text style={styles.cardDescription}>
-                  See where your account is currently logged in and remove
-                  devices you no longer use.
-                </Text>
-              </View>
-            </View>
+        {/* Active Sessions Section */}
+        <View style={styles.sectionHeader}>
+          <Text style={[styles.sectionTitle, { color: colors.onSurfaceVariant }]}>
+            ACTIVE SESSIONS ({activeSessions.length})
+          </Text>
+          <Pressable
+            disabled={isSessionsLoading}
+            onPress={() => void fetchActiveSessions()}
+            style={styles.refreshBtn}
+          >
+            <RefreshCw
+              size={16}
+              color={colors.primary}
+              style={isSessionsLoading ? styles.spin : undefined}
+            />
+          </Pressable>
+        </View>
 
-            <View style={styles.notice}>
-              <Text style={styles.noticeText}>
-                {canManageDevices
-                  ? "Oldest non-primary devices are removed automatically when a new login goes over your device limit."
-                  : "Device management is available from your primary device."}
-              </Text>
-            </View>
-
-            <View style={styles.actions}>
-              <ActionButton
-                label="Refresh"
-                icon={RefreshCw}
-                onPress={fetchActiveSessions}
-                disabled={isSessionsLoading}
-                loading={isSessionsLoading}
-                fullWidth
-              />
-              <ActionButton
-                label="Log out other devices"
-                icon={LogOut}
-                variant="danger"
-                onPress={logoutOtherSessions}
-                disabled={
-                  !canManageDevices ||
-                  isLoggingOutOthers ||
-                  otherSessionsCount === 0
-                }
-                loading={isLoggingOutOthers}
-                fullWidth
-              />
-            </View>
-
-            {isSessionsLoading ? (
-              <View style={styles.loadingBox}>
-                <ActivityIndicator color={colors.primaryContainer} />
-                <Text style={styles.loadingText}>Loading sessions...</Text>
-              </View>
-            ) : activeSessions.length === 0 ? (
-              <View style={styles.emptyState}>
-                <ShieldCheck size={40} color={colors.outline} />
-                <Text style={styles.emptyTitle}>No active devices</Text>
-                <Text style={styles.emptyText}>
-                  Once you log in, your current device sessions will appear here.
-                </Text>
-              </View>
-            ) : (
-              activeSessions.map((session) => (
-                <SessionCard
-                  key={session._id}
-                  session={session}
-                  canManageDevices={canManageDevices}
-                  isActionLoading={sessionActionId === session._id}
-                  onLogout={() => logoutOneSession(session._id)}
-                />
-              ))
-            )}
+        {isSessionsLoading && activeSessions.length === 0 ? (
+          <View style={styles.loaderWrap}>
+            <ActivityIndicator size="large" color={colors.primary} />
           </View>
+        ) : activeSessions.length === 0 ? (
+          <EmptyState
+            icon={Laptop}
+            title="No other sessions"
+            description="You are currently logged in only on this mobile device."
+          />
+        ) : (
+          <View
+            style={[
+              styles.sessionsCard,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.outlineVariant,
+              },
+            ]}
+          >
+            {activeSessions.map((session: any, idx: number) => {
+              const DeviceIcon = getDeviceIcon(session.deviceName);
+              const isCurrent = Boolean(session.isCurrent);
+              const lastActive = session.lastUsedAt || session.createdAt;
+              const formattedTime = lastActive
+                ? dayjs(lastActive).format("MMM D [at] h:mm A")
+                : "Active now";
 
-          <View style={styles.dangerCard}>
-            <Text style={styles.dangerTitle}>Delete account</Text>
-            <Text style={styles.dangerDescription}>
-              Permanently remove your account, your posts, and your direct
-              conversations. This action cannot be undone.
-            </Text>
-            <View style={styles.dangerNotice}>
-              <Text style={styles.dangerNoticeText}>
-                You will be signed out immediately after the account is deleted.
-              </Text>
-            </View>
-            <ActionButton
-              label="Delete account"
-              icon={Trash2}
-              variant="danger"
+              return (
+                <View
+                  key={session._id || idx}
+                  style={[
+                    styles.sessionRow,
+                    idx < activeSessions.length - 1 && {
+                      borderBottomColor: colors.outlineVariant,
+                      borderBottomWidth: StyleSheet.hairlineWidth,
+                    },
+                  ]}
+                >
+                  <View
+                    style={[
+                      styles.deviceIconBox,
+                      { backgroundColor: colors.surfaceContainerHigh },
+                    ]}
+                  >
+                    <DeviceIcon
+                      size={22}
+                      color={isCurrent ? colors.primary : colors.onSurface}
+                    />
+                  </View>
+
+                  <View style={styles.sessionInfo}>
+                    <View style={styles.sessionNameRow}>
+                      <Text
+                        numberOfLines={1}
+                        style={[styles.deviceName, { color: colors.onSurface }]}
+                      >
+                        {session.deviceName || "Unknown Device"}
+                      </Text>
+                      {isCurrent && (
+                        <View
+                          style={[
+                            styles.currentBadge,
+                            { backgroundColor: `${colors.primary}18` },
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.currentBadgeText,
+                              { color: colors.primary },
+                            ]}
+                          >
+                            This device
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+
+                    <Text
+                      numberOfLines={1}
+                      style={[
+                        styles.sessionMeta,
+                        { color: colors.onSurfaceVariant },
+                      ]}
+                    >
+                      {session.ipAddress ? `${session.ipAddress} • ` : ""}
+                      {formattedTime}
+                    </Text>
+                  </View>
+
+                  {!isCurrent && (
+                    <Pressable
+                      disabled={sessionActionId === session._id}
+                      onPress={() => setSessionToLogout(session)}
+                      style={({ pressed }) => [
+                        styles.sessionActionBtn,
+                        pressed && { opacity: 0.7 },
+                      ]}
+                    >
+                      {sessionActionId === session._id ? (
+                        <ActivityIndicator size="small" color={colors.error} />
+                      ) : (
+                        <LogOut size={18} color={colors.error} />
+                      )}
+                    </Pressable>
+                  )}
+                </View>
+              );
+            })}
+          </View>
+        )}
+
+        {/* Log Out From All Other Devices */}
+        {otherSessionsCount > 0 && (
+          <View style={styles.logoutOthersWrap}>
+            <PrimaryButton
+              label={`Log out from other ${otherSessionsCount} ${
+                otherSessionsCount === 1 ? "device" : "devices"
+              }`}
+              variant="outline"
+              loading={isLoggingOutOthers}
+              onPress={async () => {
+                await logoutOtherSessions();
+              }}
               fullWidth
-              onPress={() => setDeleteModalOpen(true)}
             />
           </View>
-        </ScrollView>
-      </SectionShell>
+        )}
 
-      <ConfirmModal
-        visible={deleteModalOpen}
-        title="Delete account?"
-        message="Enter your password to permanently remove this account. Your posts and direct conversations will be deleted."
-        confirmLabel="Delete account"
-        destructive
-        loading={isDeletingAccount}
-        onCancel={() => {
-          if (isDeletingAccount) return;
-          setDeletePassword("");
-          setDeleteModalOpen(false);
+        {/* Danger Zone: Delete Account */}
+        <View style={styles.sectionHeader}>
+          <Text style={[styles.sectionTitle, { color: colors.error }]}>
+            DANGER ZONE
+          </Text>
+        </View>
+
+        <View
+          style={[
+            styles.dangerCard,
+            {
+              backgroundColor: colors.surface,
+              borderColor: colors.error,
+            },
+          ]}
+        >
+          <View style={styles.dangerHeader}>
+            <Trash2 size={22} color={colors.error} />
+            <Text style={[styles.dangerTitle, { color: colors.onSurface }]}>
+              Delete Account
+            </Text>
+          </View>
+          <Text
+            style={[styles.dangerDesc, { color: colors.onSurfaceVariant }]}
+          >
+            Permanently delete your Kapota account, conversation history, and profile data. This action is irreversible.
+          </Text>
+          <View style={styles.dangerBtnWrap}>
+            <PrimaryButton
+              label="Delete account"
+              variant="outline"
+              onPress={() => setDeleteModalVisible(true)}
+              fullWidth
+            />
+          </View>
+        </View>
+      </ScrollView>
+
+      {/* Logout Single Session Confirmation */}
+      <ConfirmationDialog
+        visible={Boolean(sessionToLogout)}
+        title="Disconnect session?"
+        message={`Are you sure you want to log out ${
+          sessionToLogout?.deviceName || "this device"
+        }?`}
+        confirmLabel="Log out"
+        isDestructive
+        onCancel={() => setSessionToLogout(null)}
+        onConfirm={async () => {
+          if (!sessionToLogout) return;
+          const sId = sessionToLogout._id;
+          setSessionToLogout(null);
+          await logoutOneSession(sId);
         }}
-        onConfirm={handleDeleteAccount}
+      />
+
+      {/* Delete Account Password Confirmation Modal */}
+      <Modal
+        visible={deleteModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setDeleteModalVisible(false)}
       >
-        <TextInput
-          value={deletePassword}
-          onChangeText={setDeletePassword}
-          placeholder="Enter your password"
-          placeholderTextColor={colors.outlineVariant}
-          secureTextEntry
-          style={styles.passwordInput}
-        />
-      </ConfirmModal>
-    </SafeAreaView>
+        <View style={styles.modalOverlay}>
+          <View
+            style={[
+              styles.modalCard,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.outlineVariant,
+              },
+            ]}
+          >
+            <View style={styles.modalTop}>
+              <View
+                style={[
+                  styles.modalIconBox,
+                  { backgroundColor: `${colors.error}18` },
+                ]}
+              >
+                <Trash2 size={24} color={colors.error} />
+              </View>
+              <Text style={[styles.modalHeading, { color: colors.onSurface }]}>
+                Delete your account
+              </Text>
+              <Text
+                style={[
+                  styles.modalText,
+                  { color: colors.onSurfaceVariant },
+                ]}
+              >
+                Please enter your password to confirm permanent account deletion.
+              </Text>
+            </View>
+
+            <TextInput
+              secureTextEntry
+              placeholder="Enter your password to confirm"
+              placeholderTextColor={colors.outline}
+              value={deletePassword}
+              onChangeText={setDeletePassword}
+              style={[
+                styles.passwordInput,
+                {
+                  backgroundColor: colors.surfaceContainerHigh,
+                  color: colors.onSurface,
+                  borderColor: colors.outlineVariant,
+                },
+              ]}
+            />
+
+            <View style={styles.modalActions}>
+              <View style={styles.modalBtnHalf}>
+                <PrimaryButton
+                  label="Cancel"
+                  variant="outline"
+                  onPress={() => {
+                    setDeleteModalVisible(false);
+                    setDeletePassword("");
+                  }}
+                  fullWidth
+                />
+              </View>
+              <View style={styles.modalBtnHalf}>
+                <PrimaryButton
+                  label="Delete"
+                  loading={isDeletingAccount}
+                  onPress={handleDeleteAccount}
+                  fullWidth
+                />
+              </View>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </View>
   );
 }
 
-const createStyles = (colors: ReturnType<typeof useTheme>["theme"]["colors"]) =>
-  StyleSheet.create({
+const styles = StyleSheet.create({
   screen: {
-    backgroundColor: colors.background,
     flex: 1,
   },
   content: {
-    paddingBottom: spacing.xl,
+    paddingHorizontal: 16,
+    paddingBottom: 40,
   },
-  card: {
-    backgroundColor: colors.surfaceContainer,
-    borderColor: "rgba(255,255,255,0.05)",
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    marginBottom: spacing.md,
-    padding: spacing.sm,
-  },
-  cardHeader: {
+  sectionHeader: {
     flexDirection: "row",
-    gap: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  cardIcon: {
     alignItems: "center",
-    backgroundColor: "rgba(140,128,255,0.14)",
-    borderRadius: radius.lg,
-    height: 48,
-    justifyContent: "center",
-    width: 48,
+    justifyContent: "space-between",
+    marginTop: 24,
+    marginBottom: 10,
+    paddingHorizontal: 4,
   },
-  cardCopy: {
+  sectionTitle: {
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: 0.8,
+  },
+  refreshBtn: {
+    padding: 6,
+  },
+  spin: {
+    transform: [{ rotate: "45deg" }],
+  },
+  loaderWrap: {
+    paddingVertical: 32,
+    alignItems: "center",
+  },
+  sessionsCard: {
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    overflow: "hidden",
+  },
+  sessionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  deviceIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 14,
+  },
+  sessionInfo: {
     flex: 1,
   },
-  cardTitle: {
-    ...typography.titleMd,
-    color: colors.onSurface,
-  },
-  cardDescription: {
-    ...typography.bodySm,
-    color: colors.outline,
-    lineHeight: 20,
-    marginTop: 4,
-  },
-  notice: {
-    backgroundColor: colors.surfaceContainerHigh,
-    borderRadius: radius.lg,
-    marginBottom: spacing.sm,
-    padding: spacing.sm,
-  },
-  noticeText: {
-    ...typography.bodySm,
-    color: colors.onSurfaceVariant,
-    lineHeight: 20,
-  },
-  actions: {
-    gap: spacing.xs,
-    marginBottom: spacing.sm,
-  },
-  loadingBox: {
+  sessionNameRow: {
+    flexDirection: "row",
     alignItems: "center",
-    gap: spacing.xs,
-    paddingVertical: spacing.lg,
+    gap: 8,
   },
-  loadingText: {
-    ...typography.bodySm,
-    color: colors.outline,
+  deviceName: {
+    fontSize: 15,
+    fontWeight: "600",
   },
-  emptyState: {
-    alignItems: "center",
-    borderColor: "rgba(255,255,255,0.08)",
-    borderRadius: radius.xl,
-    borderStyle: "dashed",
-    borderWidth: 1,
-    padding: spacing.lg,
+  currentBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
   },
-  emptyTitle: {
-    ...typography.bodyLg,
-    color: colors.onSurface,
+  currentBadgeText: {
+    fontSize: 11,
     fontWeight: "700",
-    marginTop: spacing.sm,
   },
-  emptyText: {
-    ...typography.bodySm,
-    color: colors.outline,
-    lineHeight: 20,
-    marginTop: spacing.xs,
-    textAlign: "center",
+  sessionMeta: {
+    fontSize: 13,
+    marginTop: 2,
+  },
+  sessionActionBtn: {
+    padding: 8,
+    marginLeft: 8,
+  },
+  logoutOthersWrap: {
+    marginTop: 14,
   },
   dangerCard: {
-    backgroundColor: "rgba(255,180,171,0.06)",
-    borderColor: "rgba(255,180,171,0.22)",
-    borderRadius: radius.xl,
+    borderRadius: 16,
     borderWidth: 1,
-    padding: spacing.md,
+    padding: 16,
+  },
+  dangerHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 8,
   },
   dangerTitle: {
-    ...typography.titleMd,
-    color: colors.error,
+    fontSize: 16,
+    fontWeight: "700",
   },
-  dangerDescription: {
-    ...typography.bodySm,
-    color: colors.onSurfaceVariant,
-    lineHeight: 20,
-    marginTop: spacing.xs,
+  dangerDesc: {
+    fontSize: 13,
+    lineHeight: 19,
+    marginBottom: 16,
   },
-  dangerNotice: {
-    backgroundColor: "rgba(255,180,171,0.08)",
-    borderRadius: radius.lg,
-    marginBottom: spacing.sm,
-    marginTop: spacing.sm,
-    padding: spacing.sm,
+  dangerBtnWrap: {
+    width: "100%",
   },
-  dangerNoticeText: {
-    ...typography.bodySm,
-    color: colors.onSurfaceVariant,
-    lineHeight: 20,
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.65)",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 24,
+  },
+  modalCard: {
+    width: "100%",
+    maxWidth: 380,
+    borderRadius: 20,
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: 20,
+  },
+  modalTop: {
+    alignItems: "center",
+    marginBottom: 18,
+  },
+  modalIconBox: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 12,
+  },
+  modalHeading: {
+    fontSize: 18,
+    fontWeight: "700",
+    textAlign: "center",
+  },
+  modalText: {
+    fontSize: 13,
+    lineHeight: 18,
+    textAlign: "center",
+    marginTop: 6,
   },
   passwordInput: {
-    ...typography.bodyLg,
-    backgroundColor: colors.surfaceContainerHigh,
-    borderColor: colors.outlineVariant,
-    borderRadius: radius.lg,
+    height: 48,
+    borderRadius: 12,
     borderWidth: 1,
-    color: colors.onSurface,
-    marginTop: spacing.sm,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.sm,
+    paddingHorizontal: 14,
+    fontSize: 15,
+    marginBottom: 18,
   },
-  });
+  modalActions: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  modalBtnHalf: {
+    flex: 1,
+  },
+});

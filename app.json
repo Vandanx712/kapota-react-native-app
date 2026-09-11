@@ -7,7 +7,12 @@
     "scheme": "kapotamobile",
     "userInterfaceStyle": "automatic",
     "android": {
+      "package": "com.kapotachatapp",
       "predictiveBackGestureEnabled": false
+    },
+    "ios": {
+      "bundleIdentifier": "com.kapotachatapp",
+      "supportsTablet": true
     },
     "web": {
       "output": "static"
@@ -24,8 +29,22 @@
           }
         }
       ],
+      [
+        "expo-file-system",
+        {
+          "supportsOpeningDocumentsInPlace": true,
+          "enableFileSharing": true
+        }
+      ],
       "expo-image",
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-web-browser",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow Kapota to access your location to discover nearby places and connect with your community."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

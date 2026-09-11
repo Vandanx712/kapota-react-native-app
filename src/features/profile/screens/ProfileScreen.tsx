@@ -1,212 +1,743 @@
 import { useEffect, useState } from "react";
-import { Controller, useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { Settings } from "lucide-react-native";
-import { useRouter } from "expo-router";
 import {
+  ActivityIndicator,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
-
-import { PrimaryButton } from "@/features/auth/components/PrimaryButton";
-import { useAuthStore } from "@/features/auth/store/auth.store";
-import ProfileAvatar from "@/features/profile/components/ProfileAvatar";
-import ProfileField from "@/features/profile/components/ProfileField";
 import {
-  profileSchema,
-  type ProfileFormData,
-} from "@/features/profile/validation/profileSchema";
-import { splitFullName } from "@/features/profile/types/profile.types";
-import { ScreenWrapper } from "@/shared/components/ScreenWrapper";
+  Camera,
+  Check,
+  Edit2,
+  Image as ImageIcon,
+  Info,
+  Lock,
+  Mail,
+  Smile,
+  Sparkles,
+  User,
+  X,
+} from "lucide-react-native";
+import * as ImagePicker from "expo-image-picker";
+import { Image } from "expo-image";
+import { useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+
 import { useTheme } from "@/theme/ThemeProvider";
-import { spacing, typography } from "@/theme/tokens";
+import { useAuthStore } from "@/features/auth/store/auth.store";
+import { getAvatars, updatePic, updateProfile } from "@/features/auth/api/authApi";
+import { Avatar } from "@/shared/ui/Avatar";
+import { ActionSheet } from "@/shared/ui/ActionSheet";
+import { EmojiPickerModal } from "@/shared/ui/EmojiPickerModal";
+import { PrimaryButton } from "@/shared/ui/PrimaryButton";
+import { showErrorToast, showSuccessToast } from "@/utils/toast";
+import { uriToDataUri } from "@/utils/imageUtils";
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { authUser, isLoading, updateProfile } = useAuthStore();
+  const insets = useSafeAreaInsets();
   const { theme } = useTheme();
   const colors = theme.colors;
-  const styles = createStyles(colors);
-  const { firstname, lastname } = splitFullName(authUser?.fullname);
 
-  const [profileImageUri, setProfileImageUri] = useState<string | null>(
-    authUser?.profilePic?.url ?? null,
-  );
+  const authUser = useAuthStore((state) => state.authUser);
 
-  const {
-    control,
-    handleSubmit,
-    reset,
-    formState: { errors },
-  } = useForm<ProfileFormData>({
-    resolver: zodResolver(profileSchema),
-    defaultValues: {
-      firstname,
-      lastname,
-      email: authUser?.email ?? "",
-    },
-  });
+  const [fullname, setFullname] = useState(authUser?.fullname || "");
+  const [bio, setBio] = useState(authUser?.bio || "Available");
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [isEditingBio, setIsEditingBio] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [photoSheetVisible, setPhotoSheetVisible] = useState(false);
+  const [avatarPresetModalVisible, setAvatarPresetModalVisible] = useState(false);
+  const [presetAvatars, setPresetAvatars] = useState<string[]>([]);
+  const [loadingAvatars, setLoadingAvatars] = useState(false);
+  const [emojiTarget, setEmojiTarget] = useState<"name" | "bio" | null>(null);
+
+  const handleSelectEmoji = (emoji: string) => {
+    if (emojiTarget === "name") {
+      setFullname((prev) => prev + emoji);
+    } else if (emojiTarget === "bio") {
+      setBio((prev) => prev + emoji);
+    }
+  };
 
   useEffect(() => {
-    if (!authUser) return;
+    if (authUser) {
+      setFullname(authUser.fullname || "");
+      setBio(authUser.bio || "Available");
+    }
+  }, [authUser]);
 
-    const { firstname: first, lastname: last } = splitFullName(authUser.fullname);
+  const handlePickImage = async (fromCamera = false) => {
+    setPhotoSheetVisible(false);
+    try {
+      let result;
+      if (fromCamera) {
+        const perm = await ImagePicker.requestCameraPermissionsAsync();
+        if (!perm.granted) {
+          showErrorToast("Camera permission required");
+          return;
+        }
+        result = await ImagePicker.launchCameraAsync({
+          mediaTypes: ["images"],                                        
+          allowsEditing: true,
+          aspect: [1, 1],
+          quality: 0.75,
+        });
+      } else {
+        result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ["images"],
+          allowsEditing: true,
+          aspect: [1, 1],
+          quality: 0.75,
+        });
+      }
 
-    reset({
-      firstname: first,
-      lastname: last,
-      email: authUser.email ?? "",
-    });
+      if (!result.canceled && result.assets[0]?.uri) {
+        setIsSaving(true);
+        const base64Data = await uriToDataUri(result.assets[0].uri, "image/jpeg");
+        const currentKey =
+          typeof authUser?.profilePic === "object" && authUser?.profilePic?.key
+            ? authUser.profilePic.key
+            : "";
+        // Never send oldkey if it points to a shared system avatar
+        const oldkey =
+          currentKey.includes("avatar") || currentKey.includes("avatars")
+            ? ""
+            : currentKey;
 
-  }, [authUser, reset]);
+        const res = await updatePic({
+          profilePic: base64Data,
+          oldkey,
+        });
+        if (res?.user?.profilePic) {
+          const normalizedPic =
+            typeof res.user.profilePic === "string"
+              ? { url: res.user.profilePic }
+              : res.user.profilePic;
+          useAuthStore.setState((state) => ({
+            authUser: state.authUser
+              ? { ...state.authUser, profilePic: normalizedPic }
+              : null,
+          }));
+        }
+        showSuccessToast(res?.message || "Profile photo updated");
+      }
+    } catch (err: any) {
+      console.warn("Update profile photo error:", err);
+      showErrorToast(err?.response?.data?.message || "Could not update photo");
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
-  const onSubmit = (data: ProfileFormData) => {
-    updateProfile({
-      ...data,
-      profileImageUri,
-    });
+  const handleSelectPresetAvatar = async (avatarUrl: string) => {
+    setAvatarPresetModalVisible(false);
+    setIsSaving(true);
+    try {
+      const currentKey =
+        typeof authUser?.profilePic === "object" && authUser?.profilePic?.key
+          ? authUser.profilePic.key
+          : "";
+      // Never send oldkey if it points to a shared system avatar
+      const oldkey =
+        currentKey.includes("avatar") || currentKey.includes("avatars")
+          ? ""
+          : currentKey;
+
+      const res = await updatePic({
+        picUrl: avatarUrl,
+        oldkey,
+      });
+      if (res?.user?.profilePic) {
+        const normalizedPic =
+          typeof res.user.profilePic === "string"
+            ? { url: res.user.profilePic }
+            : res.user.profilePic;
+        useAuthStore.setState((state) => ({
+          authUser: state.authUser
+            ? { ...state.authUser, profilePic: normalizedPic }
+            : null,
+        }));
+      }
+      showSuccessToast(res?.message || "Avatar updated");
+    } catch (err: any) {
+      console.warn("Update avatar error:", err);
+      showErrorToast(err?.response?.data?.message || "Could not update avatar");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const openPresets = async () => {
+    setPhotoSheetVisible(false);
+    setAvatarPresetModalVisible(true);
+    setLoadingAvatars(true);
+    try {
+      const gender = authUser?.gender || "male";
+      const res = await getAvatars({ gender });
+      const rawList = res?.avatars || res?.data || [];
+      const urls: string[] = rawList
+        .map((item: any) => (typeof item === "string" ? item : item?.url))
+        .filter(Boolean);
+      setPresetAvatars(urls);
+    } catch (err: any) {
+      console.warn("Load avatars error:", err);
+      showErrorToast(err?.response?.data?.message || "Could not load avatars");
+    } finally {
+      setLoadingAvatars(false);
+    }
+  };
+
+  const handleCancelEditName = () => {
+    setFullname(authUser?.fullname || "");
+    setIsEditingName(false);
+  };
+
+  const handleCancelEditBio = () => {
+    setBio(authUser?.bio || "Available");
+    setIsEditingBio(false);
+  };
+
+  const handleSaveDetails = async () => {
+    if (!fullname.trim()) {
+      showErrorToast("Name cannot be empty");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const res = await updateProfile({
+        fullname: fullname.trim(),
+        bio: bio.trim(),
+      });
+      if (res?.user) {
+        useAuthStore.setState((state) => ({
+          authUser: state.authUser
+            ? { ...state.authUser, ...res.user }
+            : null,
+        }));
+      }
+      showSuccessToast("Profile updated");
+      setIsEditingName(false);
+      setIsEditingBio(false);
+    } catch {
+      showErrorToast("Could not update profile details");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
-    <ScreenWrapper>
+    <View
+      style={[
+        styles.screen,
+        {
+          backgroundColor: colors.background,
+          paddingTop: insets.top,
+        },
+      ]}
+    >
+      {/* Header */}
+      <View
+        style={[
+          styles.header,
+          {
+            backgroundColor: colors.surface,
+            borderBottomColor: colors.outlineVariant,
+          },
+        ]}
+      >
+        <Text style={[styles.headerTitle, { color: colors.onSurface }]}>
+          Profile
+        </Text>
+      </View>
+
       <ScrollView
-        style={styles.scroll}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.header}>
-          <View style={styles.headerTop}>
-            <View style={styles.headerCopy}>
-              <Text style={styles.eyebrow}>Profile</Text>
+        {/* Big WhatsApp Avatar with Camera Button */}
+        <View style={styles.avatarSection}>
+          <Pressable
+            onPress={() => setPhotoSheetVisible(true)}
+            style={styles.avatarWrap}
+          >
+            <Avatar
+              uri={
+                typeof authUser?.profilePic === "string"
+                  ? authUser.profilePic
+                  : authUser?.profilePic?.url
+              }
+              name={authUser?.fullname}
+              size={120}
+            />
+            <View
+              style={[
+                styles.cameraBadge,
+                { backgroundColor: colors.primary },
+              ]}
+            >
+              {isSaving ? (
+                <ActivityIndicator size="small" color={colors.onPrimary} />
+              ) : (
+                <Camera size={20} color={colors.onPrimary} strokeWidth={2.4} />
+              )}
             </View>
+          </Pressable>
+        </View>
+
+        {/* Name Item Card */}
+        <View
+          style={[
+            styles.card,
+            {
+              backgroundColor: colors.surfaceContainer,
+              borderColor: colors.outlineVariant,
+            },
+          ]}
+        >
+          <View style={styles.itemHeader}>
+            <User size={20} color={colors.primary} />
+            <Text style={[styles.itemTitle, { color: colors.onSurfaceVariant }]}>
+              Name
+            </Text>
           </View>
-          <Text style={styles.subtitle}>
-            Keep your details up to date so friends can find you.
+
+          {isEditingName ? (
+            <View style={styles.editRow}>
+              <TextInput
+                value={fullname}
+                onChangeText={setFullname}
+                maxLength={25}
+                autoFocus
+                style={[
+                  styles.input,
+                  {
+                    color: colors.onSurface,
+                    borderBottomColor: colors.primary,
+                  },
+                ]}
+              />
+              <View style={styles.editActions}>
+                <Pressable
+                  onPress={() => setEmojiTarget("name")}
+                  accessibilityLabel="Add emoji to name"
+                  style={[
+                    styles.emojiBtn,
+                    { backgroundColor: colors.surfaceContainerHighest },
+                  ]}
+                >
+                  <Smile size={18} color={colors.onSurfaceVariant} strokeWidth={2.4} />
+                </Pressable>
+                <Pressable
+                  onPress={handleCancelEditName}
+                  disabled={isSaving}
+                  accessibilityLabel="Cancel editing name"
+                  style={[
+                    styles.cancelBtn,
+                    { backgroundColor: colors.surfaceContainerHighest },
+                  ]}
+                >
+                  <X size={18} color={colors.onSurfaceVariant} strokeWidth={2.5} />
+                </Pressable>
+                <Pressable
+                  onPress={handleSaveDetails}
+                  disabled={isSaving}
+                  accessibilityLabel="Save name"
+                  style={[
+                    styles.saveBtn,
+                    { backgroundColor: colors.primary },
+                  ]}
+                >
+                  <Check size={18} color={colors.onPrimary} strokeWidth={2.5} />
+                </Pressable>
+              </View>
+            </View>
+          ) : (
+            <Pressable
+              onPress={() => setIsEditingName(true)}
+              style={styles.displayRow}
+            >
+              <Text style={[styles.displayText, { color: colors.onSurface }]}>
+                {fullname || "Your Name"}
+              </Text>
+              <Edit2 size={18} color={colors.primary} />
+            </Pressable>
+          )}
+          <Text style={[styles.helpText, { color: colors.outline }]}>
+            This is not your username. This name will be visible to your Kapota contacts.
           </Text>
         </View>
 
-        <View style={styles.card}>
-          <ProfileAvatar
-            imageUri={profileImageUri}
-            name={authUser?.fullname ?? `${firstname} ${lastname}`}
-            onImageChange={setProfileImageUri}
-          />
+        {/* Bio / About Card */}
+        <View
+          style={[
+            styles.card,
+            {
+              backgroundColor: colors.surfaceContainer,
+              borderColor: colors.outlineVariant,
+            },
+          ]}
+        >
+          <View style={styles.itemHeader}>
+            <Info size={20} color={colors.primary} />
+            <Text style={[styles.itemTitle, { color: colors.onSurfaceVariant }]}>
+              About
+            </Text>
+          </View>
 
-          <Controller
-            control={control}
-            name="firstname"
-            render={({ field }) => (
-              <ProfileField
-                label="First Name"
-                placeholder="Enter first name"
-                value={field.value}
-                onChangeText={field.onChange}
-                error={errors.firstname?.message}
+          {isEditingBio ? (
+            <View style={styles.editRow}>
+              <TextInput
+                value={bio}
+                onChangeText={setBio}
+                maxLength={40}
+                autoFocus
+                style={[
+                  styles.input,
+                  {
+                    color: colors.onSurface,
+                    borderBottomColor: colors.primary,
+                  },
+                ]}
               />
-            )}
-          />
+              <View style={styles.editActions}>
+                <Pressable
+                  onPress={() => setEmojiTarget("bio")}
+                  accessibilityLabel="Add emoji to about"
+                  style={[
+                    styles.emojiBtn,
+                    { backgroundColor: colors.surfaceContainerHighest },
+                  ]}
+                >
+                  <Smile size={18} color={colors.onSurfaceVariant} strokeWidth={2.4} />
+                </Pressable>
+                <Pressable
+                  onPress={handleCancelEditBio}
+                  disabled={isSaving}
+                  accessibilityLabel="Cancel editing about"
+                  style={[
+                    styles.cancelBtn,
+                    { backgroundColor: colors.surfaceContainerHighest },
+                  ]}
+                >
+                  <X size={18} color={colors.onSurfaceVariant} strokeWidth={2.5} />
+                </Pressable>
+                <Pressable
+                  onPress={handleSaveDetails}
+                  disabled={isSaving}
+                  accessibilityLabel="Save about"
+                  style={[
+                    styles.saveBtn,
+                    { backgroundColor: colors.primary },
+                  ]}
+                >
+                  <Check size={18} color={colors.onPrimary} strokeWidth={2.5} />
+                </Pressable>
+              </View>
+            </View>
+          ) : (
+            <Pressable
+              onPress={() => setIsEditingBio(true)}
+              style={styles.displayRow}
+            >
+              <Text style={[styles.displayText, { color: colors.onSurface }]}>
+                {bio}
+              </Text>
+              <Edit2 size={18} color={colors.primary} />
+            </Pressable>
+          )}
+        </View>
 
-          <Controller
-            control={control}
-            name="lastname"
-            render={({ field }) => (
-              <ProfileField
-                label="Last Name"
-                placeholder="Enter last name"
-                value={field.value}
-                onChangeText={field.onChange}
-                error={errors.lastname?.message}
-              />
-            )}
-          />
-
-          <Controller
-            control={control}
-            name="email"
-            render={({ field }) => (
-              <ProfileField
-                label="Email"
-                placeholder="Enter email"
-                value={field.value}
-                onChangeText={field.onChange}
-                error={errors.email?.message}
-                autoCapitalize="none"
-                keyboardType="email-address"
-              />
-            )}
-          />
-
-          <PrimaryButton
-            onPress={handleSubmit(onSubmit)}
-            loading={isLoading}
-            label="Save Changes"
-          />
+        {/* Email Card (Read-only) */}
+        <View
+          style={[
+            styles.card,
+            {
+              backgroundColor: colors.surfaceContainer,
+              borderColor: colors.outlineVariant,
+            },
+          ]}
+        >
+          <View style={styles.itemHeader}>
+            <Mail size={20} color={colors.outline} />
+            <Text style={[styles.itemTitle, { color: colors.onSurfaceVariant }]}>
+              Email
+            </Text>
+          </View>
+          <View style={styles.displayRow}>
+            <Text style={[styles.displayText, { color: colors.onSurface }]}>
+              {authUser?.email || "Not set"}
+            </Text>
+            <Lock size={16} color={colors.outline} />
+          </View>
         </View>
       </ScrollView>
-    </ScreenWrapper>
+
+      {/* Photo Picker Action Sheet */}
+      <ActionSheet
+        visible={photoSheetVisible}
+        title="Profile photo"
+        options={[
+          {
+            id: "camera",
+            label: "Take photo",
+            icon: Camera,
+            onPress: () => handlePickImage(true),
+          },
+          {
+            id: "gallery",
+            label: "Choose from gallery",
+            icon: ImageIcon,
+            onPress: () => handlePickImage(false),
+          },
+          {
+            id: "presets",
+            label: "Choose avatar preset",
+            icon: Sparkles,
+            onPress: openPresets,
+          },
+        ]}
+        onClose={() => setPhotoSheetVisible(false)}
+      />
+
+      {/* Preset Avatars Modal */}
+      <Modal
+        visible={avatarPresetModalVisible}
+        animationType="slide"
+        onRequestClose={() => setAvatarPresetModalVisible(false)}
+      >
+        <View
+          style={[
+            styles.presetContainer,
+            {
+              backgroundColor: colors.background,
+              paddingTop: insets.top,
+              paddingBottom: insets.bottom,
+            },
+          ]}
+        >
+          <View style={styles.presetHeader}>
+            <Text style={[styles.presetTitle, { color: colors.onSurface }]}>
+              Choose Avatar
+            </Text>
+            <Pressable
+              hitSlop={8}
+              onPress={() => setAvatarPresetModalVisible(false)}
+              style={styles.closeBtn}
+            >
+              <X size={22} color={colors.onSurface} />
+            </Pressable>
+          </View>
+
+          {loadingAvatars ? (
+            <View style={styles.presetLoading}>
+              <ActivityIndicator size="large" color={colors.primary} />
+            </View>
+          ) : (
+            <ScrollView contentContainerStyle={styles.presetGrid}>
+              {presetAvatars.map((url, idx) => (
+                <Pressable
+                  key={idx}
+                  onPress={() => handleSelectPresetAvatar(url)}
+                  style={styles.presetThumbWrap}
+                >
+                  <Image source={{ uri: url }} style={styles.presetThumb} />
+                </Pressable>
+              ))}
+            </ScrollView>
+          )}
+        </View>
+      </Modal>
+
+      {/* Emoji Picker Modal */}
+      <EmojiPickerModal
+        visible={emojiTarget !== null}
+        onClose={() => setEmojiTarget(null)}
+        onSelectEmoji={handleSelectEmoji}
+        title={
+          emojiTarget === "name"
+            ? "Add Emoji to Name"
+            : "Add Emoji to About"
+        }
+      />
+    </View>
   );
 }
 
-const createStyles = (colors: ReturnType<typeof useTheme>["theme"]["colors"]) =>
-  StyleSheet.create({
-  scroll: {
+const styles = StyleSheet.create({
+  screen: {
     flex: 1,
-  },
-  content: {
-    flexGrow: 1,
-    paddingBottom: 140,
   },
   header: {
-    marginBottom: spacing.lg,
-  },
-  headerCopy: {
-    flex: 1,
-    minWidth: 0,
-  },
-  headerTop: {
-    alignItems: "flex-start",
+    height: 56,
     flexDirection: "row",
-    gap: spacing.sm,
-    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  eyebrow: {
-    ...typography.labelMd,
-    color: colors.primary,
-    marginBottom: spacing.xs,
-    textTransform: "uppercase",
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: "800",
+    letterSpacing: -0.4,
   },
-  title: {
-    ...typography.headlineLgMobile,
-    color: colors.onSurface,
-    marginBottom: spacing.xs,
+  content: {
+    padding: 16,
+    paddingBottom: 100,
   },
-  subtitle: {
-    ...typography.bodySm,
-    color: colors.onSurfaceVariant,
-    lineHeight: 22,
+  avatarSection: {
+    alignItems: "center",
+    paddingVertical: 24,
+  },
+  avatarWrap: {
+    position: "relative",
+  },
+  cameraBadge: {
+    position: "absolute",
+    bottom: 4,
+    right: 4,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 3,
+    borderColor: "#FFFFFF",
   },
   card: {
-    backgroundColor: colors.surfaceContainer,
-    borderColor: colors.outlineVariant,
-    borderRadius: 24,
+    borderRadius: 20,
     borderWidth: 1,
-    padding: spacing.lg,
+    padding: 16,
+    marginBottom: 14,
   },
-  pressed: {
-    opacity: 0.7,
-  },
-  settingsButton: {
+  itemHeader: {
+    flexDirection: "row",
     alignItems: "center",
-    backgroundColor: colors.surfaceContainerHigh,
-    borderColor: colors.outlineVariant,
-    borderRadius: 18,
-    borderWidth: 1,
-    height: 42,
-    justifyContent: "center",
-    width: 42,
+    gap: 8,
+    marginBottom: 8,
   },
-  });
+  itemTitle: {
+    fontSize: 12,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+  },
+  displayRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 6,
+  },
+  displayText: {
+    fontSize: 17,
+    fontWeight: "600",
+    flex: 1,
+  },
+  editRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  input: {
+    flex: 1,
+    fontSize: 17,
+    fontWeight: "600",
+    borderBottomWidth: 2,
+    paddingVertical: 6,
+  },
+  editActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  cancelBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  emojiBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  saveBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  helpText: {
+    fontSize: 12,
+    lineHeight: 18,
+    marginTop: 8,
+  },
+  navCard: {
+    borderRadius: 20,
+    borderWidth: 1,
+    overflow: "hidden",
+    marginTop: 8,
+  },
+  navRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 16,
+    gap: 12,
+  },
+  navText: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    marginLeft: 48,
+  },
+  presetContainer: {
+    flex: 1,
+  },
+  presetHeader: {
+    height: 56,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  presetTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+  },
+  closeBtn: {
+    padding: 6,
+  },
+  presetLoading: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  presetGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    padding: 16,
+    gap: 16,
+    justifyContent: "center",
+  },
+  presetThumbWrap: {
+    borderRadius: 40,
+    overflow: "hidden",
+  },
+  presetThumb: {
+    width: 80,
+    height: 80,
+  },
+});

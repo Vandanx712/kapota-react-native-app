@@ -7,11 +7,11 @@ export const api = axios.create({
     "Content-Type": "application/json",
   },
 });
-
-api.interceptors.request.use(async (config) => {
+                                                                                    
+api.interceptors.request.use((config) => {
   try {
-    const token = await secureStorage.getToken();
-    const deviceId = await secureStorage.getDeviceId();
+    const token = secureStorage.getTokenSync();
+    const deviceId = secureStorage.getDeviceIdSync();
 
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
