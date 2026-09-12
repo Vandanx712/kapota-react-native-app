@@ -52,15 +52,21 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   sessionActionId: null,
   activeSessions: [],
   onlineUsers: [],
+  pendingSignupData: null,
+
+  setPendingSignupData: (data) => set({ pendingSignupData: data }),
 
   requestSignupOtp: async (data: SignupFormData) => {
     set({ isLoading: true });
     try {
       const res = await requestSignupOtp(data);
+      set({ pendingSignupData: data });
       showSuccessToast(res.message);
+      return true;
     } catch (error) {
       console.log("Request signup error:", error);
       throwError(error);
+      return false;
     } finally {
       set({ isLoading: false });
     }
@@ -75,12 +81,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         token: res.token,
         trustedDeviceId: res.trustedDeviceId,
         canManageDevices: true,
+        pendingSignupData: null,
       });
       secureStorage.setToken(res.token);
       secureStorage.setDeviceId(res.trustedDeviceId);
       get().connectSocket();
       showSuccessToast(res.message);
       router.replace("/(tabs)/chat");
+      return true;
     } catch (error) {
       throwError(error);
       return false;
@@ -121,11 +129,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set((state) =>
         state.authUser
           ? {
-              authUser: {
-                ...state.authUser,
-                profilePic: resdata.user.profilePic,
-              },
-            }
+            authUser: {
+              ...state.authUser,
+              profilePic: resdata.user.profilePic,
+            },
+          }
           : state,
       );
     } catch (error) {
@@ -274,7 +282,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       set({ isCheckingAuth: true });
 
-      const token = await secureStorage.getToken();
+      await secureStorage.warmupTokenCache();
+      const token = secureStorage.getTokenSync();
       if (!token) {
         set({
           authUser: null,

@@ -6,6 +6,7 @@ export type MediaAsset = {
 export type ChatUser = {
   _id: string;
   bio?: string;
+  email?: string;
   fullname: string;
   profilePic?: MediaAsset;
 };
@@ -16,6 +17,21 @@ export type GroupMember = {
   role: string;
 };
 
+export type ChatMedia = {
+  _id: string;
+  purpose?: string;
+  resourceType?: "image" | "video" | "raw" | string;
+  mimeType: string;
+  originalName: string;
+  bytes: number;
+  width?: number;
+  height?: number;
+  duration?: number;
+  format?: string;
+  status?: string;
+  url?: string | null;
+};
+
 export type ChatMessage = {
   _id: string;
   conversationId: string;
@@ -23,6 +39,8 @@ export type ChatMessage = {
   deletedFor?: string[];
   deletedForEveryone?: boolean;
   image?: MediaAsset | null;
+  media?: ChatMedia | null;
+  isEdited?: boolean;
   isSeen?: boolean;
   reacted?: string | null;
   seenBy?: string[];
@@ -30,6 +48,25 @@ export type ChatMessage = {
   system?: boolean;
   text?: string;
   updatedAt?: string;
+  replyTo?: {
+    _id: string;
+    text?: string;
+    image?: MediaAsset | null;
+    sender?: string;
+  } | null;
+  post?: {
+    _id: string;
+    image?: MediaAsset;
+    caption?: string;
+    authorName?: string;
+    user?: {
+      fullname?: string;
+      profilePic?: MediaAsset;
+    };
+    unavailable?: boolean;
+    likesCount?: number;
+    createdAt?: string;
+  } | null;
 };
 
 export type Conversation = {

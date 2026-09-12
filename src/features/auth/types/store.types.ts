@@ -23,9 +23,11 @@ export interface AuthState {
   isDeletingAccount: boolean;
   isLoggingOutOthers: boolean;
   isSessionsLoading: boolean;
+  pendingSignupData: SignupFormData | null;
+  setPendingSignupData: (data: SignupFormData | null) => void;
 
-  requestSignupOtp: (data: SignupFormData) => any;
-  verifySignupOtp: (data: VerifySignup) => any;
+  requestSignupOtp: (data: SignupFormData) => Promise<boolean>;
+  verifySignupOtp: (data: VerifySignup) => Promise<boolean>;
   requestForgotPasswordOtp: (data: RequestForgotPass) => any;
   verifyForgotPasswordOtp: (data: VerifyForgotPass) => any;
   updateProfile: (data: any) => any;

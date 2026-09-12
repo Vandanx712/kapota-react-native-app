@@ -2,6 +2,7 @@ import { isAxiosError } from "axios";
 import { create } from "zustand";
 
 import { getAuthSocketSession } from "@/services/socket/authSocketSession";
+import { mediaStorageService } from "@/services/storage/mediaStorageService";
 import { showErrorToast } from "@/utils/toast";
 import {
     createConversation as createConversationRequest,
@@ -496,6 +497,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   setDeletedMessage: (message) => {
+    if (message.media) {
+      mediaStorageService.deleteLocalMedia(
+        message.media._id,
+        message.media.mimeType,
+        message.media.originalName,
+      );
+    }
     const currentUserId = getAuthSocketSession().authUser?._id;
     set((state) => {
       if (message.deletedForEveryone) {
@@ -505,6 +513,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
               ? {
                   ...item,
                   image: message.image,
+                  media: null,
                   reacted: message.reacted,
                   text:
                     currentUserId === message.sender
@@ -530,6 +539,18 @@ export const useChatStore = create<ChatState>((set, get) => ({
       conversation.conversationId ?? conversation._id ?? "",
     );
     if (!conversationId) return;
+
+    if (get().selectedConversation?.conversationId === conversationId) {
+      get().messages.forEach((item) => {
+        if (item.media) {
+          mediaStorageService.deleteLocalMedia(
+            item.media._id,
+            item.media.mimeType,
+            item.media.originalName,
+          );
+        }
+      });
+    }
 
     set((state) => ({
       conversations: state.conversations.map((item) =>

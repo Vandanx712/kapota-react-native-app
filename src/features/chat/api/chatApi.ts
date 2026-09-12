@@ -186,3 +186,6 @@ export const searchMessages = async (
   );
   return response.data;
 };
+
+export * from "./mediaApi";
+

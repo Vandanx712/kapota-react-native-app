@@ -60,7 +60,7 @@ export default function ProfileField({
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
-          placeholderTextColor={colors.outlineVariant}
+          placeholderTextColor={colors.outline}
           onFocus={onFocus}
           onBlur={onBlur}
           autoCapitalize={autoCapitalize}

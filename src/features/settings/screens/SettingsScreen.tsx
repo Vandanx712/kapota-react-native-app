@@ -1,215 +1,336 @@
-import { LogOut, ShieldCheck, SlidersHorizontal } from "lucide-react-native";
-import { useRouter } from "expo-router";
-import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
-
-import { useAuthStore } from "@/features/auth/store/auth.store";
-import SettingsItemRow from "@/features/settings/components/SettingsItemRow";
-import SettingsProfileHeader from "@/features/settings/components/SettingsProfileHeader";
+import { useState } from "react";
 import {
-  APP_VERSION,
-  SETTINGS_ITEMS,
-} from "@/features/settings/constants/settings.constants";
-import { SETTINGS_SECTION_ICONS } from "@/features/settings/constants/settings.icons";
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import {
+  ChevronRight,
+  HardDrive,
+  HelpCircle,
+  Key,
+  Laptop,
+  LogOut,
+  MessageCircle,
+  Settings2,
+} from "lucide-react-native";
+import { useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+
 import { useTheme } from "@/theme/ThemeProvider";
-import { radius, spacing, typography } from "@/theme/tokens";
-import { ScreenWrapper } from "@/shared/components/ScreenWrapper";
+import { useAuthStore } from "@/features/auth/store/auth.store";
+import { AppHeader } from "@/shared/ui/AppHeader";
+import { Avatar } from "@/shared/ui/Avatar";
+import { ConfirmationDialog } from "@/shared/ui/ConfirmationDialog";
 
 export default function SettingsScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { theme } = useTheme();
   const colors = theme.colors;
-  const styles = createStyles(colors);
-  const { logout } = useAuthStore();
+  const { authUser, logout } = useAuthStore();
+  const [logoutModalVisible, setLogoutModalVisible] = useState(false);
 
-  const handleLogout = () => {
-    Alert.alert("Log out", "Are you sure you want to log out?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Log out",
-        style: "destructive",
-        onPress: () => logout(),
-      },
-    ]);
-  };
+  const SETTINGS_SECTIONS = [
+    {
+      id: "account",
+      title: "Account",
+      subtitle: "Active sessions, security, delete account",
+      icon: Key,
+      iconBg: colors.primary,
+      onPress: () => router.push("/settings/account"),
+    },
+    {
+      id: "linked_devices",
+      title: "Linked devices",
+      subtitle: "Pair with web & desktop, camera QR scanner",
+      icon: Laptop,
+      iconBg: colors.secondary,
+      onPress: () => router.push("/settings/linked-devices"),
+    },
+    {
+      id: "chats",
+      title: "Chats",
+      subtitle: "Theme and conversation preview",
+      icon: MessageCircle,
+      iconBg: colors.success,
+      onPress: () => router.push("/settings/chats"),
+    },
+    {
+      id: "media",
+      title: "Media & Storage",
+      subtitle: "Auto-download rules and cached storage",
+      icon: HardDrive,
+      iconBg: colors.primaryContainer,
+      onPress: () => router.push("/settings/media"),
+    },
+    {
+      id: "posts",
+      title: "Posts & Community",
+      subtitle: "My posts summary, post privacy controls",
+      icon: Settings2,
+      iconBg: colors.tertiary,
+      onPress: () => router.push("/settings/post"),
+    },
+    {
+      id: "help",
+      title: "Help and feedback",
+      subtitle: "Help centre, contact support, privacy",
+      icon: HelpCircle,
+      iconBg: colors.highlight,
+      onPress: () => router.push("/settings/help"),
+    },
+  ];
 
   return (
-    <ScreenWrapper>
+    <View
+      style={[
+        styles.screen,
+        {
+          backgroundColor: colors.background,
+          paddingTop: insets.top,
+        },
+      ]}
+    >
+      <AppHeader title="Settings" showBack />
+
       <ScrollView
-        showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
       >
-        <View style={styles.hero}>
-          <View style={styles.heroCopy}>
-            <Text style={styles.eyebrow}>Account</Text>
-            <Text style={styles.subtitle}>
-              Your identity, preferences, and app controls.
+        {/* User Profile Card */}
+        <Pressable
+          onPress={() => router.push("/(tabs)/profile")}
+          style={({ pressed }) => [
+            styles.profileCard,
+            {
+              backgroundColor: colors.surface,
+              borderBottomColor: colors.outlineVariant,
+            },
+            pressed && { backgroundColor: colors.surfaceContainerHigh },
+          ]}
+        >
+          <Avatar
+            uri={authUser?.profilePic?.url}
+            name={authUser?.fullname}
+            size={60}
+          />
+          <View style={styles.profileText}>
+            <Text
+              numberOfLines={1}
+              style={[styles.profileName, { color: colors.onSurface }]}
+            >
+              {authUser?.fullname || "User"}
+            </Text>
+            <Text
+              numberOfLines={1}
+              style={[styles.profileBio, { color: colors.onSurfaceVariant }]}
+            >
+              {authUser?.bio || "Available"}
             </Text>
           </View>
-          
-        </View>
+          <ChevronRight size={20} color={colors.outline} />
+        </Pressable>
 
-        <SettingsProfileHeader />
-
-        <View style={styles.sectionHeader}>
-          <View style={styles.sectionIcon}>
-            <SlidersHorizontal size={17} color={colors.primaryContainer} />
-          </View>
-          <View>
-            <Text style={styles.sectionTitle}>Manage your space</Text>
-            <Text style={styles.sectionDescription}>
-              Everything you need, in one place.
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          {SETTINGS_ITEMS.map((item) => {
-            const Icon = SETTINGS_SECTION_ICONS[item.id];
+        {/* Section List */}
+        <View style={styles.sectionContainer}>
+          {SETTINGS_SECTIONS.map((item, index) => {
+            const Icon = item.icon;
             return (
-              <SettingsItemRow
+              <Pressable
                 key={item.id}
-                icon={Icon}
-                label={item.label}
-                description={item.description}
-                onPress={() => router.push(`/settings/${item.id}`)}
-              />
+                onPress={item.onPress}
+                style={({ pressed }) => [
+                  styles.itemRow,
+                  { backgroundColor: colors.surface },
+                  pressed && { backgroundColor: colors.surfaceContainerHigh },
+                ]}
+              >
+                <View
+                  style={[
+                    styles.iconBox,
+                    { backgroundColor: item.iconBg },
+                  ]}
+                >
+                  <Icon size={20} color="#FFFFFF" strokeWidth={2.2} />
+                </View>
+
+                <View
+                  style={[
+                    styles.itemTextContainer,
+                    {
+                      borderBottomColor: colors.outlineVariant,
+                      borderBottomWidth:
+                        index === SETTINGS_SECTIONS.length - 1
+                          ? 0
+                          : StyleSheet.hairlineWidth,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[styles.itemTitle, { color: colors.onSurface }]}
+                  >
+                    {item.title}
+                  </Text>
+                  <Text
+                    numberOfLines={1}
+                    style={[
+                      styles.itemSubtitle,
+                      { color: colors.onSurfaceVariant },
+                    ]}
+                  >
+                    {item.subtitle}
+                  </Text>
+                </View>
+
+                <ChevronRight size={18} color={colors.outline} style={styles.itemChevron} />
+              </Pressable>
             );
           })}
         </View>
 
-        <View style={styles.securityNote}>
-          <ShieldCheck size={18} color={colors.success} />
-          <Text style={styles.securityText}>
-            Your account settings stay on this device until you change them.
-          </Text>
+        {/* Log Out Row */}
+        <View style={styles.logoutContainer}>
+          <Pressable
+            onPress={() => setLogoutModalVisible(true)}
+            style={({ pressed }) => [
+              styles.logoutRow,
+              { backgroundColor: colors.surface },
+              pressed && { backgroundColor: colors.surfaceContainerHigh },
+            ]}
+          >
+            <View
+              style={[
+                styles.iconBox,
+                { backgroundColor: colors.error },
+              ]}
+            >
+              <LogOut size={20} color={colors.onError} strokeWidth={2.2} />
+            </View>
+            <View style={styles.logoutTextContainer}>
+              <Text style={[styles.logoutTitle, { color: colors.error }]}>
+                Log out
+              </Text>
+              <Text
+                style={[
+                  styles.logoutSubtitle,
+                  { color: colors.onSurfaceVariant },
+                ]}
+              >
+                Sign out from this device
+              </Text>
+            </View>
+          </Pressable>
         </View>
 
-        <View style={styles.logoutCard}>
-          <SettingsItemRow
-            icon={LogOut}
-            label="Log out"
-            description="Sign out from this device"
-            onPress={handleLogout}
-            danger
-          />
-        </View>
-
-        <Text style={styles.version}>{APP_VERSION}</Text>
+        <Text style={[styles.versionText, { color: colors.outline }]}>
+          Kapota Mobile v1.0.0
+        </Text>
       </ScrollView>
-    </ScreenWrapper>
+
+      {/* Log out dialog */}
+      <ConfirmationDialog
+        visible={logoutModalVisible}
+        title="Log out?"
+        message="Are you sure you want to log out of your Kapota account on this device?"
+        confirmLabel="Log out"
+        isDestructive
+        onCancel={() => setLogoutModalVisible(false)}
+        onConfirm={async () => {
+          setLogoutModalVisible(false);
+          await logout();
+        }}
+      />
+    </View>
   );
 }
 
-const createStyles = (colors: ReturnType<typeof useTheme>["theme"]["colors"]) =>
-  StyleSheet.create({
-    content: {
-      paddingBottom: 140,
-    },
-    hero: {
-      alignItems: "flex-start",
-      flexDirection: "row",
-      justifyContent: "space-between",
-      marginBottom: spacing.md,
-    },
-    heroCopy: {
-      flex: 1,
-      minWidth: 0,
-    },
-    eyebrow: {
-      ...typography.labelMd,
-      color: colors.primary,
-      letterSpacing: 1.4,
-      textTransform: "uppercase",
-    },
-    title: {
-      ...typography.headlineLgMobile,
-      color: colors.onSurface,
-      fontSize: 30,
-      fontWeight: "800",
-      marginTop: 3,
-    },
-    subtitle: {
-      ...typography.bodySm,
-      color: colors.onSurfaceVariant,
-      lineHeight: 21,
-      marginTop: 4,
-    },
-    statusPill: {
-      alignItems: "center",
-      backgroundColor: colors.surfaceContainer,
-      borderColor: colors.outlineVariant,
-      borderRadius: radius.full,
-      borderWidth: 1,
-      flexDirection: "row",
-      gap: 6,
-      marginTop: 6,
-      paddingHorizontal: 10,
-      paddingVertical: 7,
-    },
-    statusDot: {
-      backgroundColor: colors.success,
-      borderRadius: radius.full,
-      height: 7,
-      width: 7,
-    },
-    statusText: {
-      ...typography.labelMd,
-      color: colors.onSurfaceVariant,
-      fontSize: 10,
-    },
-    sectionHeader: {
-      alignItems: "center",
-      flexDirection: "row",
-      gap: spacing.sm,
-      marginBottom: spacing.xs,
-      marginTop: spacing.xs,
-    },
-    sectionIcon: {
-      alignItems: "center",
-      backgroundColor: colors.surfaceContainerHigh,
-      borderRadius: radius.md,
-      height: 34,
-      justifyContent: "center",
-      width: 34,
-    },
-    sectionTitle: {
-      ...typography.bodyLg,
-      color: colors.onSurface,
-      fontWeight: "700",
-    },
-    sectionDescription: {
-      ...typography.bodySm,
-      color: colors.outline,
-      fontSize: 12,
-      marginTop: 1,
-    },
-    section: {
-      marginBottom: spacing.sm,
-    },
-    securityNote: {
-      alignItems: "center",
-      backgroundColor: colors.surfaceContainerLow,
-      borderColor: colors.outlineVariant,
-      borderRadius: radius.md,
-      borderWidth: 1,
-      flexDirection: "row",
-      gap: spacing.xs,
-      marginTop: spacing.xs,
-      padding: spacing.sm,
-    },
-    securityText: {
-      ...typography.bodySm,
-      color: colors.onSurfaceVariant,
-      flex: 1,
-      lineHeight: 19,
-    },
-    logoutCard: {
-      marginTop: spacing.md,
-    },
-    version: {
-      ...typography.labelMd,
-      color: colors.outline,
-      marginTop: spacing.md,
-      textAlign: "center",
-    },
-  });
+const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+  },
+  content: {
+    paddingBottom: 40,
+  },
+  profileCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    gap: 14,
+  },
+  profileText: {
+    flex: 1,
+  },
+  profileName: {
+    fontSize: 18,
+    fontWeight: "700",
+  },
+  profileBio: {
+    fontSize: 13,
+    marginTop: 2,
+  },
+  sectionContainer: {
+    marginTop: 18,
+  },
+  itemRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingLeft: 16,
+    paddingRight: 16,
+    minHeight: 64,
+  },
+  iconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 14,
+  },
+  itemTextContainer: {
+    flex: 1,
+    justifyContent: "center",
+    paddingVertical: 12,
+  },
+  itemTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  itemSubtitle: {
+    fontSize: 13,
+    marginTop: 2,
+  },
+  itemChevron: {
+    marginLeft: 8,
+  },
+  logoutContainer: {
+    marginTop: 20,
+  },
+  logoutRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  logoutTextContainer: {
+    flex: 1,
+  },
+  logoutTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  logoutSubtitle: {
+    fontSize: 13,
+    marginTop: 2,
+  },
+  versionText: {
+    textAlign: "center",
+    fontSize: 12,
+    marginTop: 32,
+    fontWeight: "500",
+  },
+});

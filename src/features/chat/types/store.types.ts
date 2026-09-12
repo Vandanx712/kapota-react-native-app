@@ -10,7 +10,10 @@ import type {
 
 export type SendMessageInput = {
   image?: string;
+  mediaId?: string;
   text?: string;
+  replyTo?: string;
+  postId?: string;
 };
 
 export interface ChatState {

@@ -3,15 +3,25 @@ import {
   Compass,
   MessageSquare,
   PlusCircle,
-  UserRound,
+  User,
 } from "lucide-react-native";
 import { useTheme } from "@/theme/ThemeProvider";
-import { radius, spacing, typography } from "@/theme/tokens";
-import { StyleSheet, View } from "react-native";
+import { useChatStore } from "@/features/chat/store/chat.store";
+import { useMemo } from "react";
+import { Platform, StyleSheet, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function TabsLayout() {
   const { theme } = useTheme();
   const colors = theme.colors;
+  const insets = useSafeAreaInsets();
+  const conversations = useChatStore((state) => state.conversations);
+
+  const totalUnreadCount = useMemo(() => {
+    return conversations.reduce((total, con) => total + (con.unseenMsg ?? 0), 0);
+  }, [conversations]);
+
+  const tabBarHeight = Platform.OS === "ios" ? 54 + insets.bottom : 64;
 
   return (
     <Tabs
@@ -21,26 +31,25 @@ export default function TabsLayout() {
         tabBarInactiveTintColor: colors.outline,
         tabBarShowLabel: true,
         tabBarLabelStyle: {
-          ...typography.titleMd,
-          fontSize: 12,
-          marginBottom: 2,
+          fontSize: 11,
+          fontWeight: "700",
+          letterSpacing: 0.2,
+          marginBottom: Platform.OS === "ios" ? 0 : 6,
         },
         tabBarItemStyle: {
-          paddingTop: 4,
+          paddingTop: 8,
         },
-
         tabBarStyle: {
-          position: "absolute",
-          left: spacing.md,
-          right: spacing.md,
-          bottom: spacing.md,
-          height: 78,
-          borderRadius: radius.full,
-          backgroundColor: colors.surfaceContainer,
-          borderWidth: 1,
-          borderColor: colors.outlineVariant,
-          paddingBottom: 8,
-          paddingTop: 6,
+          backgroundColor: colors.surface,
+          borderTopColor: colors.outlineVariant,
+          borderTopWidth: StyleSheet.hairlineWidth,
+          height: tabBarHeight,
+          paddingBottom: Platform.OS === "ios" ? insets.bottom : 8,
+          elevation: 8,
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: 0.08,
+          shadowRadius: 4,
         },
       }}
     >
@@ -48,9 +57,20 @@ export default function TabsLayout() {
         name="chat"
         options={{
           title: "Chats",
+          tabBarBadge: totalUnreadCount > 0 ? totalUnreadCount : undefined,
+          tabBarBadgeStyle: {
+            backgroundColor: colors.primary,
+            color: colors.onPrimary,
+            fontSize: 10,
+            fontWeight: "700",
+          },
           tabBarIcon: ({ focused, color }) => (
-            <View>
-              <MessageSquare color={focused ? colors.primary : color} size={24} strokeWidth={2.4} />
+            <View style={styles.iconContainer}>
+              <MessageSquare
+                color={color}
+                size={24}
+                strokeWidth={focused ? 2.5 : 2}
+              />
             </View>
           ),
         }}
@@ -60,8 +80,12 @@ export default function TabsLayout() {
         options={{
           title: "Explore",
           tabBarIcon: ({ focused, color }) => (
-            <View>
-              <Compass color={focused ? colors.primary : color} size={24} strokeWidth={2.4} />
+            <View style={styles.iconContainer}>
+              <Compass
+                color={color}
+                size={24}
+                strokeWidth={focused ? 2.5 : 2}
+              />
             </View>
           ),
         }}
@@ -71,8 +95,12 @@ export default function TabsLayout() {
         options={{
           title: "Post",
           tabBarIcon: ({ focused, color }) => (
-            <View>
-              <PlusCircle color={focused ? colors.primary : color} size={24} strokeWidth={2.4} />
+            <View style={styles.iconContainer}>
+              <PlusCircle
+                color={color}
+                size={24}
+                strokeWidth={focused ? 2.5 : 2}
+              />
             </View>
           ),
         }}
@@ -82,8 +110,12 @@ export default function TabsLayout() {
         options={{
           title: "Profile",
           tabBarIcon: ({ focused, color }) => (
-            <View>
-              <UserRound color={focused ? colors.primary : color} size={24} strokeWidth={2.4} />
+            <View style={styles.iconContainer}>
+              <User
+                color={color}
+                size={24}
+                strokeWidth={focused ? 2.5 : 2}
+              />
             </View>
           ),
         }}
@@ -91,3 +123,11 @@ export default function TabsLayout() {
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  iconContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    height: 28,
+  },
+});

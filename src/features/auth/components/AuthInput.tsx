@@ -58,7 +58,7 @@ export function AuthInput({
       <TextInput
         style={[styles.input, isFocused && styles.inputFocused]}
         placeholder={placeholder}
-        placeholderTextColor={colors.outlineVariant}
+        placeholderTextColor={colors.outline}
         value={value}
         onChangeText={onChangeText}
         onFocus={onFocus}

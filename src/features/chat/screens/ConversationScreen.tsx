@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import * as Clipboard from "expo-clipboard";
 import * as ImagePicker from "expo-image-picker";
@@ -6,7 +6,6 @@ import { isAxiosError } from "axios";
 import {
   ActivityIndicator,
   Alert,
-  FlatList,
   ImageBackground,
   KeyboardAvoidingView,
   Platform,
@@ -16,7 +15,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-
+import { FlashList, type FlashListRef } from "@shopify/flash-list";
 import { useAuthStore } from "@/features/auth/store/auth.store";
 import {
   clearChat,
@@ -27,10 +26,10 @@ import {
   updateMessage,
 } from "@/features/chat/api/chatApi";
 import {
-  ChatInfoModal,
   DeleteMessagesModal,
   MessageInfoModal,
 } from "@/features/chat/components/ChatModals";
+import ConversationInfoModal from "@/features/chat/components/ConversationInfoModal";
 import ChatInputBar from "@/features/chat/components/ChatInputBar";
 import ConversationHeader, {
   ConversationSearchHeader,
@@ -45,11 +44,13 @@ import type {
 } from "@/features/chat/types/chat.types";
 import { useTheme } from "@/theme/ThemeProvider";
 import { radius, spacing, typography } from "@/theme/tokens";
+import { mediaStorageService } from "@/services/storage/mediaStorageService";
 import {
   showErrorToast,
   showInfoToast,
   showSuccessToast,
 } from "@/utils/toast";
+import { uriToDataUri } from "@/utils/imageUtils";
 
 const DELETE_FOR_EVERYONE_WINDOW_MS = 15 * 60 * 1000;
 
@@ -67,8 +68,8 @@ export default function ConversationScreen() {
   }>();
   const { theme } = useTheme();
   const colors = theme.colors;
-  const styles = createStyles(colors);
-  const listRef = useRef<FlatList<ChatMessage>>(null);
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const listRef = useRef<FlashListRef<ChatMessage>>(null);
   const didInitialScrollRef = useRef(false);
   const searchRequestRef = useRef(0);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -135,9 +136,9 @@ export default function ConversationScreen() {
       selectedConversation?.conversationId === conversationId
         ? selectedConversation
         : conversations.find(
-            (conversation) =>
-              conversation.conversationId === conversationId,
-          ),
+          (conversation) =>
+            conversation.conversationId === conversationId,
+        ),
     [conversationId, conversations, selectedConversation],
   );
   const contactId = contact?.conversationId;
@@ -155,8 +156,8 @@ export default function ConversationScreen() {
       store.selectedConversation?.conversationId === contactId
         ? store.selectedConversation
         : store.conversations.find(
-            (conversation) => conversation.conversationId === contactId,
-          );
+          (conversation) => conversation.conversationId === contactId,
+        );
     if (!currentContact) return;
 
     didInitialScrollRef.current = false;
@@ -186,8 +187,8 @@ export default function ConversationScreen() {
   const onlineUserSet = useMemo(() => new Set(onlineUsers), [onlineUsers]);
   const isOnline = contact?.isgroup
     ? Object.keys(contact.groupdetail?.membersDetail ?? {}).some(
-        (id) => id !== authUser?._id && onlineUserSet.has(id),
-      )
+      (id) => id !== authUser?._id && onlineUserSet.has(id),
+    )
     : Boolean(contact?.oruserId && onlineUserSet.has(contact.oruserId));
   const currentMember = authUser?._id
     ? contact?.groupdetail?.membersDetail?.[authUser._id]
@@ -228,9 +229,28 @@ export default function ConversationScreen() {
       );
     });
 
-  const handleSend = async (text: string) => {
-    const didSend = await sendMessage({ text });
+  const [replyMessage, setReplyMessage] = useState<ChatMessage | null>(null);
+
+  const handleSend = async (data: {
+    text?: string;
+    image?: string;
+    imageUri?: string;
+    replyTo?: string;
+  }) => {
+    if (data.imageUri) {
+      void mediaStorageService.cacheSenderMedia(
+        data.imageUri,
+        "image/jpeg",
+        "sent_photo.jpg",
+      );
+    }
+    const didSend = await sendMessage({
+      text: data.text,
+      image: data.image,
+      replyTo: data.replyTo,
+    });
     if (didSend) {
+      setReplyMessage(null);
       requestAnimationFrame(() => {
         listRef.current?.scrollToEnd({ animated: true });
       });
@@ -286,20 +306,47 @@ export default function ConversationScreen() {
     }, 300);
   };
 
-  const toggleMessageSelection = (message: ChatMessage) => {
+  const toggleMessageSelection = useCallback((message: ChatMessage) => {
     setSelectedMessageIds((current) =>
       current.includes(message._id)
         ? current.filter((id) => id !== message._id)
-        : [...current, message._id],
+        : [...current, message._id]
     );
-  };
+  }, []);
 
-  const handleMessageLongPress = (message: ChatMessage) => {
+  const handleMessageLongPress = useCallback((message: ChatMessage) => {
     setSelectedMessageIds((current) =>
-      current.includes(message._id) ? current : [...current, message._id],
+      current.includes(message._id) ? current : [...current, message._id]
     );
-    if (!message.deletedForEveryone) setReactionMessage(message);
-  };
+    if (!message.deletedForEveryone) {
+      setReactionMessage(message);
+    }
+  }, []);
+
+  const renderMessageItem = useCallback(
+    ({ item }: { item: ChatMessage }) => {
+      if (!contact) return null;
+      return (
+        <MessageBubble
+          conversation={contact}
+          currentUserId={authUser?._id}
+          isSelected={selectedMessageIds.includes(item._id)}
+          message={item}
+          onLongPress={handleMessageLongPress}
+          onPress={toggleMessageSelection}
+          selectionMode={isSelectionMode}
+        />
+      );
+    },
+    [
+      contact,
+      authUser?._id,
+      selectedMessageIds,
+      handleMessageLongPress,
+      toggleMessageSelection,
+      isSelectionMode,
+    ],
+  );
 
   const handleReaction = async (emoji: string) => {
     if (!reactionMessage || !contact) return;
@@ -348,15 +395,22 @@ export default function ConversationScreen() {
       );
 
       selectedMessages.forEach((message) => {
+        if (message.media) {
+          mediaStorageService.deleteLocalMedia(
+            message.media._id,
+            message.media.mimeType,
+            message.media.originalName,
+          );
+        }
         const updatedMessage: ChatMessage =
           deleteType === "deleteForEveryone"
             ? { ...message, deletedForEveryone: true }
             : {
-                ...message,
-                deletedFor: authUser?._id
-                  ? [...new Set([...(message.deletedFor ?? []), authUser._id])]
-                  : message.deletedFor,
-              };
+              ...message,
+              deletedFor: authUser?._id
+                ? [...new Set([...(message.deletedFor ?? []), authUser._id])]
+                : message.deletedFor,
+            };
         setDeletedMessage(updatedMessage);
         if (deleteType === "deleteForEveryone") {
           setDeletedMessageForSlider(updatedMessage);
@@ -366,20 +420,20 @@ export default function ConversationScreen() {
       setSearchResults((current) =>
         deleteType === "deleteForMe"
           ? current.filter(
-              (message) => !selectedMessageIds.includes(message._id),
-            )
+            (message) => !selectedMessageIds.includes(message._id),
+          )
           : current.map((message) =>
-              selectedMessageIds.includes(message._id)
-                ? {
-                    ...message,
-                    deletedForEveryone: true,
-                    text:
-                      message.sender === authUser?._id
-                        ? "You deleted this message"
-                        : "This message was deleted",
-                  }
-                : message,
-            ),
+            selectedMessageIds.includes(message._id)
+              ? {
+                ...message,
+                deletedForEveryone: true,
+                text:
+                  message.sender === authUser?._id
+                    ? "You deleted this message"
+                    : "This message was deleted",
+              }
+              : message,
+          ),
       );
       setDeleteModalVisible(false);
       setSelectedMessageIds([]);
@@ -405,6 +459,15 @@ export default function ConversationScreen() {
   const clearCurrentChat = async () => {
     if (!contact) return;
     try {
+      messages.forEach((msg) => {
+        if (msg.media) {
+          mediaStorageService.deleteLocalMedia(
+            msg.media._id,
+            msg.media.mimeType,
+            msg.media.originalName,
+          );
+        }
+      });
       const response = await clearChat(contact.conversationId);
       setClearChat({ conversationId: contact.conversationId });
       showSuccessToast(response?.message ?? "Chat cleared");
@@ -465,15 +528,14 @@ export default function ConversationScreen() {
     const result = await ImagePicker.launchImageLibraryAsync({
       allowsEditing: true,
       aspect: [4, 5],
-      base64: true,
       mediaTypes: ["images"],
       quality: 0.78,
     });
     const asset = result.canceled ? null : result.assets[0];
-    if (!asset?.base64) return;
+    if (!asset?.uri) return;
 
     try {
-      const image = `data:${asset.mimeType ?? "image/jpeg"};base64,${asset.base64}`;
+      const image = await uriToDataUri(asset.uri, asset.mimeType ?? "image/jpeg");
       const response = (await updateConBgimage({
         id: contact.conversationId,
         image,
@@ -575,7 +637,7 @@ export default function ConversationScreen() {
               />
             </View>
           ) : (
-            <FlatList
+            <FlashList
               contentContainerStyle={[
                 styles.messageListContent,
                 displayedMessages.length === 0 && styles.emptyMessageContent,
@@ -583,6 +645,19 @@ export default function ConversationScreen() {
               data={displayedMessages}
               extraData={selectedMessageIds}
               keyExtractor={(item) => item._id}
+              ref={listRef}
+              renderItem={renderMessageItem}
+              showsVerticalScrollIndicator={false}
+              onContentSizeChange={() => {
+                if (
+                  !isSearchMode &&
+                  !didInitialScrollRef.current &&
+                  messages.length > 0
+                ) {
+                  listRef.current?.scrollToEnd({ animated: false });
+                  didInitialScrollRef.current = true;
+                }
+              }}
               ListEmptyComponent={
                 <View style={styles.centerState}>
                   <Text style={styles.stateText}>
@@ -624,31 +699,6 @@ export default function ConversationScreen() {
                   </Pressable>
                 ) : null
               }
-              maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
-              onContentSizeChange={() => {
-                if (
-                  !isSearchMode &&
-                  !didInitialScrollRef.current &&
-                  messages.length > 0
-                ) {
-                  listRef.current?.scrollToEnd({ animated: false });
-                  didInitialScrollRef.current = true;
-                }
-              }}
-              ref={listRef}
-              renderItem={({ item }) => (
-                <MessageBubble
-                  conversation={contact}
-                  currentUserId={authUser?._id}
-                  isSelected={selectedMessageIds.includes(item._id)}
-                  message={item}
-                  onLongPress={handleMessageLongPress}
-                  onPress={toggleMessageSelection}
-                  selectionMode={isSelectionMode}
-                />
-              )}
-              showsVerticalScrollIndicator={false}
-              style={styles.messageList}
             />
           )}
 
@@ -665,6 +715,8 @@ export default function ConversationScreen() {
             <ChatInputBar
               onSend={handleSend}
               onTypingChange={handleTypingChange}
+              replyMessage={replyMessage}
+              onCancelReply={() => setReplyMessage(null)}
             />
           </View>
         )}
@@ -692,7 +744,7 @@ export default function ConversationScreen() {
         onClose={() => setMessageInfoVisible(false)}
         visible={messageInfoVisible}
       />
-      <ChatInfoModal
+      <ConversationInfoModal
         conversation={contact}
         onClose={() => setChatInfoVisible(false)}
         visible={chatInfoVisible}

@@ -1,82 +1,123 @@
-import { Search, Settings } from "lucide-react-native";
-import { Image, Pressable, StyleSheet, Text, View } from "react-native";
-import logo from "@/assets/images/kapota-splash-logo.png";
+import { useState } from "react";
+import { StyleSheet, Text, View, Pressable } from "react-native";
+import {
+  Laptop,
+  MoreVertical,
+  PlusCircle,
+  Search,
+  Settings,
+  Users,
+} from "lucide-react-native";
+import { useRouter } from "expo-router";
 import { useTheme } from "@/theme/ThemeProvider";
-import { elevation, spacing, typography } from "@/theme/tokens";
-import { router } from "expo-router";
+import { ActionSheet } from "@/shared/ui/ActionSheet";
 
-type Props = {
+export interface HeaderProps {
   onSearchPress: () => void;
-};
+  onNewGroupPress?: () => void;
+}
 
-export default function Header({ onSearchPress }: Props) {
+export default function Header({ onSearchPress, onNewGroupPress }: HeaderProps) {
+  const router = useRouter();
   const { theme } = useTheme();
   const colors = theme.colors;
-  const styles = createStyles(colors);
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  const menuOptions = [
+    {
+      id: "new_group",
+      label: "New group",
+      icon: Users,
+      onPress: () => {
+        if (onNewGroupPress) onNewGroupPress();
+      },
+    },
+    {
+      id: "linked_devices",
+      label: "Linked devices",
+      icon: Laptop,
+      onPress: () => {
+        router.push("/settings/linked-devices");
+      },
+    },
+    {
+      id: "settings",
+      label: "Settings",
+      icon: Settings,
+      onPress: () => {
+        router.push("/settings");
+      },
+    },
+  ];
 
   return (
-    <View style={styles.header}>
-      <View style={styles.brandRow}>
-        <Image source={logo} style={styles.logo} />
-        <Text style={styles.brand}>Kapota</Text>
+    <>
+      <View
+        style={[
+          styles.header,
+          {
+            backgroundColor: colors.surface,
+          },
+        ]}
+      >
+        <Text style={[styles.brandTitle, { color: colors.primary }]}>
+          Kapota
+        </Text>
+
+        <View style={styles.actionsRow}>
+          <Pressable
+            hitSlop={8}
+            onPress={onSearchPress}
+            style={({ pressed }) => [styles.actionButton, pressed && styles.pressed]}
+            accessibilityLabel="Search"
+          >
+            <Search size={22} color={colors.onSurface} strokeWidth={2.2} />
+          </Pressable>
+
+          <Pressable
+            hitSlop={8}
+            onPress={() => setMenuOpen(true)}
+            style={({ pressed }) => [styles.actionButton, pressed && styles.pressed]}
+            accessibilityLabel="More options"
+          >
+            <MoreVertical size={22} color={colors.onSurface} strokeWidth={2.2} />
+          </Pressable>
+        </View>
       </View>
 
-      <View style={styles.headerActions}>
-        <Pressable
-          accessibilityLabel="Search conversations"
-          hitSlop={8}
-          onPress={onSearchPress}
-          style={styles.iconButton}
-        >
-          <Search size={22} color={colors.outline} strokeWidth={2.4} />
-        </Pressable>
-        <Pressable
-          accessibilityLabel="Search conversations"
-          hitSlop={8}
-          onPress={()=> router.push("/settings/index")}
-          style={styles.iconButton}
-        >
-          <Settings size={22} color={colors.outline} strokeWidth={2.4} />
-        </Pressable>
-      </View>
-    </View>
+      <ActionSheet
+        visible={menuOpen}
+        options={menuOptions}
+        onClose={() => setMenuOpen(false)}
+      />
+    </>
   );
 }
 
-const createStyles = (colors: ReturnType<typeof useTheme>["theme"]["colors"]) =>
-  StyleSheet.create({
+const styles = StyleSheet.create({
   header: {
-    alignItems: "center",
+    height: 54,
     flexDirection: "row",
+    alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: spacing.md,
+    paddingHorizontal: 16,
   },
-  brandRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: spacing.xs,
-  },
-  logo: {
-    height: 42,
-    width: 42,
-    ...elevation.level2,
-  },
-  brand: {
-    ...typography.headlineLg,
-    color: colors.onSurface,
-    fontSize: spacing.md,
+  brandTitle: {
+    fontSize: 22,
     fontWeight: "800",
-    lineHeight: 45,
+    letterSpacing: -0.4,
   },
-  headerActions: {
-    alignItems: "center",
+  actionsRow: {
     flexDirection: "row",
-    gap: spacing.md,
-  },
-  iconButton: {
     alignItems: "center",
-    height: 25,
+    gap: 16,
+  },
+  actionButton: {
+    padding: 4,
+    alignItems: "center",
     justifyContent: "center",
-    width: 25,
+  },
+  pressed: {
+    opacity: 0.6,
   },
 });

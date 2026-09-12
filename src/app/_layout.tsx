@@ -77,11 +77,19 @@ function RootNavigator({ isAuthenticated }: { isAuthenticated: boolean }) {
             options={{ headerShown: false }}
           />
           <Stack.Screen
+            name="settings/linked-devices"
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
             name="settings/post"
             options={{ headerShown: false }}
           />
           <Stack.Screen
             name="settings/chats"
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="settings/media"
             options={{ headerShown: false }}
           />
           <Stack.Screen
