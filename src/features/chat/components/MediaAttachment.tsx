@@ -158,6 +158,9 @@ export const MediaAttachment = memo(function MediaAttachment({
             style={styles.mediaImage}
             contentFit="cover"
             transition={200}
+            cachePolicy="memory-disk"
+            recyclingKey={localUri}
+            priority="normal"
           />
         </Pressable>
 
@@ -180,6 +183,8 @@ export const MediaAttachment = memo(function MediaAttachment({
             source={{ uri: localUri }}
             style={styles.mediaImage}
             contentFit="cover"
+            cachePolicy="memory-disk"
+            recyclingKey={localUri}
           />
           <View style={styles.playOverlay}>
             <View style={styles.playIconCircle}>

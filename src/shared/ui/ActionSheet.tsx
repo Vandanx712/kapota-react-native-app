@@ -7,6 +7,16 @@ import {
   Text,
   View,
 } from "react-native";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+  runOnJS,
+  interpolate,
+  Extrapolation,
+} from "react-native-reanimated";
 import type { LucideProps } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "@/theme/ThemeProvider";
@@ -39,6 +49,37 @@ export function ActionSheet({
   const insets = useSafeAreaInsets();
   const colors = theme.colors;
 
+  const translateY = useSharedValue(0);
+
+  const panGesture = Gesture.Pan()
+    .onChange((event) => {
+      if (event.translationY > 0) {
+        translateY.value = event.translationY;
+      }
+    })
+    .onEnd((event) => {
+      if (event.translationY > 90 || event.velocityY > 500) {
+        translateY.value = withTiming(350, { duration: 180 }, () => {
+          runOnJS(onClose)();
+        });
+      } else {
+        translateY.value = withSpring(0, { damping: 22, stiffness: 220 });
+      }
+    });
+
+  const sheetAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: translateY.value }],
+  }));
+
+  const backdropAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(
+      translateY.value,
+      [0, 250],
+      [1, 0],
+      Extrapolation.CLAMP,
+    ),
+  }));
+
   return (
     <Modal
       animationType="slide"
@@ -46,36 +87,41 @@ export function ActionSheet({
       visible={visible}
       onRequestClose={onClose}
     >
-      <Pressable style={styles.backdrop} onPress={onClose}>
-        <Pressable
-          style={[
-            styles.sheet,
-            {
-              backgroundColor: colors.surfaceContainer,
-              paddingBottom: Math.max(insets.bottom, 16),
-            },
-          ]}
-          onPress={(e) => e.stopPropagation()}
-        >
-          <View style={styles.handleWrap}>
-            <View
-              style={[styles.handle, { backgroundColor: colors.outlineVariant }]}
-            />
-          </View>
+      <Animated.View style={[styles.backdrop, backdropAnimatedStyle]}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        <GestureDetector gesture={panGesture}>
+          <Animated.View
+            style={[
+              styles.sheet,
+              {
+                backgroundColor: colors.surfaceContainer,
+                paddingBottom: Math.max(insets.bottom, 16),
+              },
+              sheetAnimatedStyle,
+            ]}
+          >
+            <View style={styles.handleWrap}>
+              <View
+                style={[
+                  styles.handle,
+                  { backgroundColor: colors.outlineVariant },
+                ]}
+              />
+            </View>
 
-          {title && (
-            <Text
-              style={[
-                styles.title,
-                {
-                  color: colors.onSurfaceVariant,
-                  borderBottomColor: colors.outlineVariant,
-                },
-              ]}
-            >
-              {title}
-            </Text>
-          )}
+            {title && (
+              <Text
+                style={[
+                  styles.title,
+                  {
+                    color: colors.onSurfaceVariant,
+                    borderBottomColor: colors.outlineVariant,
+                  },
+                ]}
+              >
+                {title}
+              </Text>
+            )}
 
           <ScrollView style={styles.optionsList} bounces={false}>
             {options.map((option) => {
@@ -134,24 +180,23 @@ export function ActionSheet({
             })}
           </ScrollView>
 
-          {showCancel && (
-            <Pressable
-              onPress={onClose}
-              style={({ pressed }) => [
-                styles.cancelButton,
-                { backgroundColor: colors.surfaceContainerHigh },
-                pressed && styles.pressed,
-              ]}
-            >
-              <Text
-                style={[styles.cancelText, { color: colors.onSurface }]}
+            {showCancel && (
+              <Pressable
+                onPress={onClose}
+                style={({ pressed }) => [
+                  styles.cancelButton,
+                  { backgroundColor: colors.surfaceContainerHigh },
+                  pressed && styles.pressed,
+                ]}
               >
-                Cancel
-              </Text>
-            </Pressable>
-          )}
-        </Pressable>
-      </Pressable>
+                <Text style={[styles.cancelText, { color: colors.onSurface }]}>
+                  Cancel
+                </Text>
+              </Pressable>
+            )}
+          </Animated.View>
+        </GestureDetector>
+      </Animated.View>
     </Modal>
   );
 }

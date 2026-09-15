@@ -1,6 +1,7 @@
 import { isAxiosError } from "axios";
 import { create } from "zustand";
 
+import { appStorage } from "@/services/storage/appStorage";
 import { getAuthSocketSession } from "@/services/socket/authSocketSession";
 import { mediaStorageService } from "@/services/storage/mediaStorageService";
 import { showErrorToast } from "@/utils/toast";
@@ -97,7 +98,7 @@ const emitUnseenMessages = (
 
 const initialState = {
   conversationError: null,
-  conversations: [] as Conversation[],
+  conversations: (appStorage.getCachedConversations<Conversation[]>() ?? []) as Conversation[],
   hasMoreMessages: false,
   hasMoreSurroundingUsers: false,
   isConversationLoading: false,
@@ -118,14 +119,21 @@ export const useChatStore = create<ChatState>((set, get) => ({
   ...initialState,
 
   getConversation: async () => {
-    set({ conversationError: null, isConversationLoading: true });
+    set({
+      conversationError: null,
+      isConversationLoading: get().conversations.length === 0,
+    });
     try {
       const response = await getConversations();
-      set({ conversations: response.filtered ?? [] });
+      const conversations = response.filtered ?? [];
+      appStorage.setCachedConversations(conversations);
+      set({ conversations });
     } catch (error) {
       const message = getErrorMessage(error, "Unable to load conversations");
       set({ conversationError: message });
-      showErrorToast(message);
+      if (get().conversations.length === 0) {
+        showErrorToast(message);
+      }
     } finally {
       set({ isConversationLoading: false });
     }
@@ -245,13 +253,16 @@ export const useChatStore = create<ChatState>((set, get) => ({
       conversationId ?? get().selectedConversation?.conversationId;
     if (!targetId) return;
 
+    const cached = appStorage.getCachedMessages<ChatMessage[]>(targetId);
+    const hasCached = Boolean(cached && cached.length > 0);
+
     set({
       hasMoreMessages: false,
-      isMessageLoading: true,
+      isMessageLoading: !hasCached,
       isMoreMessagesLoading: false,
       messageCursor: null,
       messageError: null,
-      messages: [],
+      messages: cached ?? [],
     });
 
     try {
@@ -263,15 +274,19 @@ export const useChatStore = create<ChatState>((set, get) => ({
       const incoming = response.messages ?? [];
       const currentUserId = getAuthSocketSession().authUser?._id;
       emitUnseenMessages(incoming, currentUserId);
+      const updatedMessages = markMessagesSeenLocally(incoming, currentUserId);
+      appStorage.setCachedMessages(targetId, updatedMessages);
       set({
         hasMoreMessages: Boolean(response.hasMore),
         messageCursor: response.nextCursor ?? null,
-        messages: markMessagesSeenLocally(incoming, currentUserId),
+        messages: updatedMessages,
       });
     } catch (error) {
       const message = getErrorMessage(error, "Unable to load messages");
       set({ messageError: message });
-      showErrorToast(message);
+      if (get().messages.length === 0) {
+        showErrorToast(message);
+      }
     } finally {
       set({ isMessageLoading: false });
     }
@@ -327,19 +342,222 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const selectedConversation = get().selectedConversation;
     if (!selectedConversation) return false;
 
+    const { authUser } = getAuthSocketSession();
+    const tempId = `temp_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    const optimisticMessage: ChatMessage = {
+      _id: tempId,
+      conversationId: selectedConversation.conversationId,
+      sender: authUser?._id ?? "",
+      text: data.text,
+      createdAt: new Date().toISOString(),
+      status: "pending",
+      replyTo: null,
+      ...(data.imageUri
+        ? {
+            media: {
+              _id: tempId,
+              url: data.imageUri,
+              mimeType: "image/jpeg",
+              originalName: "photo.jpg",
+              bytes: 0,
+              resourceType: "image",
+            },
+          }
+        : {}),
+    };
+
+    // 1. Immediately update UI state (optimistic)
+    const nextMessages = [...get().messages, optimisticMessage];
+    set({ messages: nextMessages });
+    get().setNmsgInCon(optimisticMessage);
+
+    // 2. Persist to MMKV cached messages and Outbox queue (WhatsApp mindset)
+    appStorage.setCachedMessages(
+      selectedConversation.conversationId,
+      nextMessages,
+    );
+    appStorage.addToOutbox({
+      createdAt: optimisticMessage.createdAt!,
+      data,
+      conversationId: selectedConversation.conversationId,
+      tempId,
+    });
+
     try {
       const response = await sendMessageRequest(
         selectedConversation.conversationId,
         data,
       );
       if (response.newMessage) {
-        get().receiveMessage(response.newMessage);
-        get().setNmsgInCon(response.newMessage);
+        const confirmed: ChatMessage = {
+          ...response.newMessage,
+          status: "sent",
+        };
+        const updatedMessages = get().messages.map((m) =>
+          m._id === tempId ? confirmed : m,
+        );
+        set({ messages: updatedMessages });
+        appStorage.setCachedMessages(
+          selectedConversation.conversationId,
+          updatedMessages,
+        );
+        appStorage.removeFromOutbox(tempId);
+        get().setNmsgInCon(confirmed);
       }
       return true;
     } catch (error) {
-      showErrorToast(getErrorMessage(error, "Unable to send message"));
-      return false;
+      // Check if it was a fatal rejection (e.g. 400 Bad Request, 403 Forbidden)
+      if (
+        isAxiosError(error) &&
+        error.response &&
+        error.response.status >= 400 &&
+        error.response.status < 500
+      ) {
+        appStorage.removeFromOutbox(tempId);
+        set((state) => ({
+          messages: state.messages.map((m) =>
+            m._id === tempId ? { ...m, status: "failed" } : m,
+          ),
+        }));
+        showErrorToast(getErrorMessage(error, "Unable to send message"));
+        return false;
+      }
+
+      // If offline or network connection error: keep status as "pending" (clock icon)
+      // and do not show an intrusive toast. The outbox sync will send it once online.
+      return true;
+    }
+  },
+
+  retrySendMessage: async (message) => {
+    const selectedConversation = get().selectedConversation;
+    if (!selectedConversation) return false;
+
+    set((state) => ({
+      messages: state.messages.map((m) =>
+        m._id === message._id ? { ...m, status: "pending" } : m,
+      ),
+    }));
+
+    const sendData = {
+      text: message.text,
+      image: message.image?.url,
+      replyTo: message.replyTo?._id,
+    };
+
+    appStorage.addToOutbox({
+      createdAt: new Date().toISOString(),
+      data: sendData,
+      conversationId: selectedConversation.conversationId,
+      tempId: message._id,
+    });
+
+    try {
+      const response = await sendMessageRequest(
+        selectedConversation.conversationId,
+        sendData,
+      );
+      if (response.newMessage) {
+        const confirmed: ChatMessage = {
+          ...response.newMessage,
+          status: "sent",
+        };
+        const updatedMessages = get().messages.map((m) =>
+          m._id === message._id ? confirmed : m,
+        );
+        set({ messages: updatedMessages });
+        appStorage.setCachedMessages(
+          selectedConversation.conversationId,
+          updatedMessages,
+        );
+        appStorage.removeFromOutbox(message._id);
+        get().setNmsgInCon(confirmed);
+      }
+      return true;
+    } catch (error) {
+      if (
+        isAxiosError(error) &&
+        error.response &&
+        error.response.status >= 400 &&
+        error.response.status < 500
+      ) {
+        appStorage.removeFromOutbox(message._id);
+        set((state) => ({
+          messages: state.messages.map((m) =>
+            m._id === message._id ? { ...m, status: "failed" } : m,
+          ),
+        }));
+        showErrorToast(getErrorMessage(error, "Unable to send message"));
+        return false;
+      }
+
+      // If network error, leave as pending in outbox
+      return true;
+    }
+  },
+
+  syncPendingOutbox: async () => {
+    const outbox = appStorage.getOutbox();
+    if (outbox.length === 0) return;
+
+    for (const item of outbox) {
+      try {
+        const response = await sendMessageRequest(
+          item.conversationId,
+          item.data,
+        );
+        if (response.newMessage) {
+          const confirmed: ChatMessage = {
+            ...response.newMessage,
+            status: "sent",
+          };
+          appStorage.removeFromOutbox(item.tempId);
+
+          // Update active messages if user is looking at this conversation
+          set((state) => {
+            const hasMsg = state.messages.some((m) => m._id === item.tempId);
+            if (hasMsg) {
+              return {
+                messages: state.messages.map((m) =>
+                  m._id === item.tempId ? confirmed : m,
+                ),
+              };
+            }
+            return state;
+          });
+
+          // Update MMKV cached messages for that conversation
+          const cached = appStorage.getCachedMessages<ChatMessage[]>(
+            item.conversationId,
+          );
+          if (cached) {
+            const updated = cached.map((m) =>
+              m._id === item.tempId ? confirmed : m,
+            );
+            appStorage.setCachedMessages(item.conversationId, updated);
+          }
+
+          get().setNmsgInCon(confirmed);
+        }
+      } catch (error) {
+        if (
+          isAxiosError(error) &&
+          error.response &&
+          error.response.status >= 400 &&
+          error.response.status < 500
+        ) {
+          // Fatal rejection from server: remove from outbox and mark failed
+          appStorage.removeFromOutbox(item.tempId);
+          set((state) => ({
+            messages: state.messages.map((m) =>
+              m._id === item.tempId ? { ...m, status: "failed" } : m,
+            ),
+          }));
+        } else {
+          // Network connection still failing: halt and wait for next reconnect
+          break;
+        }
+      }
     }
   },
 
@@ -348,18 +566,19 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const selectedConversation = get().selectedConversation;
     if (selectedConversation?.conversationId !== message.conversationId) return;
 
-    set((state) => ({
-      messages: mergeUniqueMessages(state.messages, [
-        message.sender === authUser?._id
-          ? message
-          : {
-              ...message,
-              seenBy: authUser?._id
-                ? [...new Set([...(message.seenBy ?? []), authUser._id])]
-                : message.seenBy,
-            },
-      ]),
-    }));
+    const newMessages = mergeUniqueMessages(get().messages, [
+      message.sender === authUser?._id
+        ? message
+        : {
+            ...message,
+            seenBy: authUser?._id
+              ? [...new Set([...(message.seenBy ?? []), authUser._id])]
+              : message.seenBy,
+          },
+    ]);
+
+    appStorage.setCachedMessages(message.conversationId, newMessages);
+    set({ messages: newMessages });
 
     if (!message.system && message.sender !== authUser?._id) {
       socket?.emit("msgseen", {
@@ -388,6 +607,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         newMessage.system || isOwn || isOpen ? 0 : (target.unseenMsg ?? 0) + 1;
 
       conversations.unshift({ ...target, lastmessage: newMessage, unseenMsg });
+      appStorage.setCachedConversations(conversations);
       return { conversations };
     });
   },

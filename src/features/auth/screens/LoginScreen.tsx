@@ -240,7 +240,7 @@ export default function LoginScreen() {
 
             {/* SWITCH TO SIGNUP */}
             <View style={styles.signupRow}>
-              <Text style={styles.signupPrompt}>Don't have an account? </Text>
+              <Text style={styles.signupPrompt}>Don&apos;t have an account? </Text>
               <Pressable onPress={() => router.push("/(auth)/signup")}>
                 <Text style={styles.signupLink}>Sign up</Text>
               </Pressable>

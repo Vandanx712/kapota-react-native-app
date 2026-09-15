@@ -64,12 +64,12 @@ export default function ProfileScreen() {
     }
   };
 
-  useEffect(() => {
-    if (authUser) {
-      setFullname(authUser.fullname || "");
-      setBio(authUser.bio || "Available");
-    }
-  }, [authUser]);
+  const [prevAuthUser, setPrevAuthUser] = useState(authUser);
+  if (authUser !== prevAuthUser) {
+    setPrevAuthUser(authUser);
+    setFullname(authUser?.fullname || "");
+    setBio(authUser?.bio || "Available");
+  }
 
   const handlePickImage = async (fromCamera = false) => {
     setPhotoSheetVisible(false);

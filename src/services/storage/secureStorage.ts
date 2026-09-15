@@ -1,9 +1,8 @@
 import * as SecureStore from "expo-secure-store";
+import { appStorage } from "./appStorage";
 
 const TOKEN = "token";
-const THEME = "theme";
 const DEVICEID = "trustedDeviceId";
-const SUGGESTED_PLACES = "suggested_places";
                                                                                                
 let cachedToken: string | null = null;
 let cachedDeviceId: string | null = null;
@@ -44,26 +43,36 @@ export const secureStorage = {
   getDeviceIdSync: () => cachedDeviceId,
 
   deleteDeviceId: async () => {
-    cachedDeviceId = null;                                                                                                                    
+    cachedDeviceId = null;
     await SecureStore.deleteItemAsync(DEVICEID);
   },
 
-  setTheme: (theme: string) => SecureStore.setItemAsync(THEME, theme),
-  getTheme: () => SecureStore.getItemAsync(THEME),
-  deleteTheme: () => SecureStore.deleteItemAsync(THEME),
-                                                                                                                                            
-  setSuggestedPlaces: (places: unknown) =>
-    SecureStore.setItemAsync(SUGGESTED_PLACES, JSON.stringify(places)),
+  setTheme: (theme: string) => {
+    appStorage.setTheme(theme);
+    return Promise.resolve();
+  },
+  getTheme: () => Promise.resolve(appStorage.getTheme()),
+  getThemeSync: () => appStorage.getTheme(),
+  deleteTheme: () => {
+    appStorage.deleteTheme();
+    return Promise.resolve();
+  },
+
+  setSuggestedPlaces: (places: unknown) => {
+    appStorage.setSuggestedPlaces(places);
+    return Promise.resolve();
+  },
 
   getSuggestedPlaces: async <T = unknown>(): Promise<T | null> => {
-    try {
-      const raw = await SecureStore.getItemAsync(SUGGESTED_PLACES);
-      return raw ? (JSON.parse(raw) as T) : null;
-    } catch {
-      return null;
-    }
+    return appStorage.getSuggestedPlaces<T>();
   },
-  deleteSuggestedPlaces: () => SecureStore.deleteItemAsync(SUGGESTED_PLACES),
+  getSuggestedPlacesSync: <T = unknown>(): T | null => {
+    return appStorage.getSuggestedPlaces<T>();
+  },
+  deleteSuggestedPlaces: () => {
+    appStorage.deleteSuggestedPlaces();
+    return Promise.resolve();
+  },
 
   warmupTokenCache: async () => {
     const [token, deviceId] = await Promise.all([

@@ -2,13 +2,12 @@ import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
   useState,
   type ReactNode,
 } from "react";
 
-import { secureStorage } from "@/services/storage/secureStorage";
+import { appStorage } from "@/services/storage/appStorage";
 import type { Theme, ThemeName } from "../types/theme";
 import {
   componentTypography,
@@ -23,9 +22,10 @@ import {
 } from "./tokens";
 
 interface ThemeContextValue {
+  isHydrated: boolean;
   theme: Theme;
   themeName: ThemeName;
-  isHydrated: boolean;
+  availableThemes: readonly ThemeName[];
   setTheme: (name: ThemeName) => Promise<void>;
   setMode: (name: ThemeName) => Promise<void>;
   toggle: () => Promise<void>;
@@ -38,30 +38,15 @@ function isThemeName(value: string | null): value is ThemeName {
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [themeName, setThemeName] = useState<ThemeName>("default");
-  const [isHydrated, setIsHydrated] = useState(false);
-
-  useEffect(() => {
-    let mounted = true;
-
-    secureStorage
-      .getTheme()
-      .then((stored) => {
-        if (mounted && isThemeName(stored)) setThemeName(stored);
-      })
-      .catch(() => undefined)
-      .finally(() => {
-        if (mounted) setIsHydrated(true);
-      });
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
+  const [themeName, setThemeName] = useState<ThemeName>(() => {
+    const stored = appStorage.getTheme();
+    return isThemeName(stored) ? stored : "default";
+  });
+  const [isHydrated] = useState(true);
 
   const setTheme = useCallback(async (name: ThemeName) => {
     setThemeName(name);
-    await secureStorage.setTheme(name);
+    appStorage.setTheme(name);
   }, []);
 
   const toggle = useCallback(async () => {
@@ -86,6 +71,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     return {
       theme,
       themeName,
+      availableThemes: themeNames,
       isHydrated,
       setTheme,
       setMode: setTheme,

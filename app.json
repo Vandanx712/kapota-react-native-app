@@ -8,6 +8,7 @@
     "userInterfaceStyle": "automatic",
     "android": {
       "package": "com.kapotachatapp",
+      "googleServicesFile": "./google-services.json",
       "predictiveBackGestureEnabled": false
     },
     "ios": {
@@ -43,6 +44,13 @@
         "expo-location",
         {
           "locationAlwaysAndWhenInUsePermission": "Allow Kapota to access your location to discover nearby places and connect with your community."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/kapota-splash-logo.png",
+          "color": "#5B4CF0"
         }
       ]
     ],

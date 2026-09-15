@@ -10,6 +10,7 @@ import type {
 
 export type SendMessageInput = {
   image?: string;
+  imageUri?: string;
   mediaId?: string;
   text?: string;
   replyTo?: string;
@@ -47,7 +48,9 @@ export interface ChatState {
     conversation: Partial<Conversation> & { _id?: string },
   ) => void;
   resetChatState: () => void;
+  retrySendMessage: (message: ChatMessage) => Promise<boolean>;
   sendMessage: (data: SendMessageInput) => Promise<boolean>;
+  syncPendingOutbox: () => Promise<void>;
   setClearChat: (conversation: {
     _id?: string;
     conversationId?: string;

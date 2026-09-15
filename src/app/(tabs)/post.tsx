@@ -9,6 +9,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import {
   Camera,
   Check,
@@ -363,10 +364,11 @@ export default function CreatePostScreen() {
         </Text>
       </View>
 
-      <ScrollView
+      <KeyboardAwareScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        bottomOffset={60}
       >
         {/* Media Picker / Preview */}
         {pickedImageUri ? (
@@ -375,6 +377,7 @@ export default function CreatePostScreen() {
               source={{ uri: pickedImageUri }}
               style={styles.previewImage}
               contentFit="cover"
+              cachePolicy="memory"
             />
             {/* Filter Color Tone Overlay */}
             {currentOverlay && currentOverlay !== "transparent" && (
@@ -784,7 +787,7 @@ export default function CreatePostScreen() {
             fullWidth
           />
         </View>
-      </ScrollView>
+      </KeyboardAwareScrollView>
     </View>
   );
 }

@@ -61,14 +61,21 @@ export function NewGroupModal({
   const [searchQuery, setSearchQuery] = useState("");
   const [emojiPickerVisible, setEmojiPickerVisible] = useState(false);
 
-  useEffect(() => {
+  const [prevVisible, setPrevVisible] = useState(visible);
+  if (visible !== prevVisible) {
+    setPrevVisible(visible);
     if (visible) {
-      void getSurroundingUsers();
       setStep(1);
       setSelectedUsers([]);
       setGroupName("");
       setGroupIconPreview(null);
       setSearchQuery("");
+    }
+  }
+
+  useEffect(() => {
+    if (visible) {
+      void getSurroundingUsers();
     }
   }, [visible, getSurroundingUsers]);
 

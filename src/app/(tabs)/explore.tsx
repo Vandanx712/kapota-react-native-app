@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   RefreshControl,
@@ -7,6 +7,7 @@ import {
   View,
 } from "react-native";
 import { Compass, RefreshCw } from "lucide-react-native";
+import { useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "@/theme/ThemeProvider";
 import { useAuthStore } from "@/features/auth/store/auth.store";
@@ -18,7 +19,7 @@ import { ExplorePostCard } from "@/features/explore/components/ExplorePostCard";
 import { SharePostModal } from "@/features/explore/components/SharePostModal";
 import { EmptyState } from "@/shared/ui/EmptyState";
 import { IconButton } from "@/shared/ui/IconButton";
-import { FlashList } from "@shopify/flash-list"
+import { FlashList } from "@shopify/flash-list";
 
 export default function ExploreScreen() {
   const { theme } = useTheme();
@@ -53,28 +54,29 @@ export default function ExploreScreen() {
     [likePost, handleSharePost],
   );
 
-  useEffect(() => {
-    void fetchFeed(true);
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      if (useExploreStore.getState().posts.length === 0) {
+        void fetchFeed(true);
+      }
 
-  // Socket listener for real-time like updates
-  useEffect(() => {
-    if (!socket) return;
+      if (!socket) return;
 
-    const handlePostLiked = (data: {
-      postId: string;
-      userId: string;
-      liked: boolean;
-      likesCount: number;
-    }) => {
-      syncSocketLike(data);
-    };
+      const handlePostLiked = (data: {
+        postId: string;
+        userId: string;
+        liked: boolean;
+        likesCount: number;
+      }) => {
+        syncSocketLike(data);
+      };
 
-    socket.on("postLiked", handlePostLiked);
-    return () => {
-      socket.off("postLiked", handlePostLiked);
-    };
-  }, [socket, syncSocketLike]);
+      socket.on("postLiked", handlePostLiked);
+      return () => {
+        socket.off("postLiked", handlePostLiked);
+      };
+    }, [socket, syncSocketLike, fetchFeed])
+  );
 
   return (
     <View

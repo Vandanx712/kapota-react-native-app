@@ -1,13 +1,11 @@
 import React, { memo, useState } from "react";
-import { StyleSheet, Text, View, Pressable, Dimensions } from "react-native";
+import { StyleSheet, Text, View, Pressable, useWindowDimensions } from "react-native";
 import { Image } from "expo-image";
 import dayjs from "dayjs";
-import { Heart, MapPin, Send, MessageCircle } from "lucide-react-native";
+import { Heart, MapPin, Send } from "lucide-react-native";
 import { useTheme } from "@/theme/ThemeProvider";
 import type { PostItem } from "../store/explore.store";
 import { Avatar } from "@/shared/ui/Avatar";
-
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 export interface ExplorePostCardProps {
   post: PostItem;
@@ -25,6 +23,7 @@ export const ExplorePostCard = memo(function ExplorePostCard({
   const { theme } = useTheme();
   const colors = theme.colors;
 
+  const { width: screenWidth } = useWindowDimensions();
   const [expanded, setExpanded] = useState(false);
 
   const formattedTime = post.createdAt
@@ -80,12 +79,24 @@ export const ExplorePostCard = memo(function ExplorePostCard({
 
       {/* Post Image */}
       {post.image?.url ? (
-        <View style={[styles.imageContainer, { backgroundColor: colors.surfaceContainerHigh }]}>
+        <View
+          style={[
+            styles.imageContainer,
+            {
+              width: screenWidth,
+              height: screenWidth * 1.05,
+              backgroundColor: colors.surfaceContainerHigh,
+            },
+          ]}
+        >
           <Image
             source={{ uri: post.image.url }}
             style={styles.image}
             contentFit="cover"
             transition={200}
+            cachePolicy="memory-disk"
+            recyclingKey={post.image.url}
+            priority="normal"
           />
         </View>
       ) : null}
@@ -192,8 +203,6 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   imageContainer: {
-    width: SCREEN_WIDTH,
-    height: SCREEN_WIDTH * 1.05,
     overflow: "hidden",
   },
   image: {

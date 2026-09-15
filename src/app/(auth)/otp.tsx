@@ -33,7 +33,7 @@ export default function OtpVerificationScreen() {
 
   const [otp, setOtp] = useState("");
   const [timer, setTimer] = useState(60);
-  const [canResend, setCanResend] = useState(false);
+  const canResend = timer <= 0;
   const inputRef = useRef<TextInput>(null);
 
   useEffect(() => {
@@ -46,10 +46,7 @@ export default function OtpVerificationScreen() {
   }, []);
 
   useEffect(() => {
-    if (timer <= 0) {
-      setCanResend(true);
-      return;
-    }
+    if (timer <= 0) return;
 
     const interval = setInterval(() => {
       setTimer((prev) => prev - 1);
@@ -98,7 +95,6 @@ export default function OtpVerificationScreen() {
 
   const handleResend = async () => {
     if (!canResend || !pendingSignupData) return;
-    setCanResend(false);
     setTimer(60);
     setOtp("");
 

@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { secureStorage } from "@/services/storage/secureStorage";
+import { appStorage } from "@/services/storage/appStorage";
 import {
   CHAT_THEMES,
   type ChatThemeName,
@@ -12,12 +12,20 @@ interface ThemeState {
   hydrateChatTheme: () => Promise<void>;
 }
 
-export const useThemeStore = create<ThemeState>((set, get) => ({
-  chatTheme: "default",
-  isHydrated: false,
+const getInitialTheme = (): ChatThemeName => {
+  const stored = appStorage.getTheme();
+  if (stored && CHAT_THEMES.includes(stored as ChatThemeName)) {
+    return stored as ChatThemeName;
+  }
+  return "default";
+};
+
+export const useThemeStore = create<ThemeState>((set) => ({
+  chatTheme: getInitialTheme(),
+  isHydrated: true,
 
   hydrateChatTheme: async () => {
-    const stored = await secureStorage.getTheme();
+    const stored = appStorage.getTheme();
     if (stored && CHAT_THEMES.includes(stored as ChatThemeName)) {
       set({ chatTheme: stored as ChatThemeName, isHydrated: true });
       return;
@@ -27,6 +35,6 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
 
   setChatTheme: async (theme) => {
     set({ chatTheme: theme });
-    await secureStorage.setTheme(theme);
+    appStorage.setTheme(theme);
   },
 }));

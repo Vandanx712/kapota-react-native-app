@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { StyleSheet, Text, View, Pressable } from "react-native";
 import { Image } from "expo-image";
 import { Users } from "lucide-react-native";
@@ -27,11 +27,7 @@ export function Avatar({
 }: AvatarProps) {
   const { theme } = useTheme();
   const colors = theme.colors;
-  const [imageError, setImageError] = useState(false);
-
-  useEffect(() => {
-    setImageError(false);
-  }, [uri]);
+  const [failedUri, setFailedUri] = useState<string | null>(null);
 
   const initials = useMemo(() => {
     if (!name) return "?";
@@ -42,7 +38,7 @@ export function Avatar({
     return name.slice(0, 2).toUpperCase();
   }, [name]);
 
-  const hasValidUri = Boolean(uri && !imageError);
+  const hasValidUri = Boolean(uri && failedUri !== uri);
   const statusSize = Math.max(10, Math.round(size * 0.24));
   const indicatorOffset = Math.round(size * 0.02);
 
@@ -66,7 +62,10 @@ export function Avatar({
           style={{ width: size, height: size, borderRadius: size / 2 }}
           contentFit="cover"
           transition={150}
-          onError={() => setImageError(true)}
+          cachePolicy="memory-disk"
+          recyclingKey={uri!}
+          priority="high"
+          onError={() => setFailedUri(uri ?? null)}
         />
       ) : isGroup ? (
         <View

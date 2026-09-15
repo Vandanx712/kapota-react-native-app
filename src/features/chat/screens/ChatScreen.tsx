@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useCallback, useState } from "react";
+import { useMemo, useCallback, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -8,14 +8,14 @@ import {
   View,
 } from "react-native";
 import { MessageSquarePlus, Trash2 } from "lucide-react-native";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useTheme } from "@/theme/ThemeProvider";
 import { useChatStore } from "../store/chat.store";
 import type { Conversation } from "../types/chat.types";
 import { deleteConversation } from "../api/chatApi";
-import ConversationRow from "../components/ConversationRow";
+import { ConversationRow } from "../components/ConversationRow";
 import Header from "../components/Header";
 import NewChatModal from "../components/NewChatModal";
 import { NewGroupModal } from "../components/NewGroupModal";
@@ -45,15 +45,16 @@ export default function ChatScreen() {
   const [confirmDeleteCon, setConfirmDeleteCon] = useState<Conversation | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const conversationError = useChatStore((state) => state.conversationError);
   const conversations = useChatStore((state) => state.conversations);
   const getConversation = useChatStore((state) => state.getConversation);
   const isConversationLoading = useChatStore((state) => state.isConversationLoading);
   const setSelectedConversation = useChatStore((state) => state.setSelectedConversation);
 
-  useEffect(() => {
-    void getConversation();
-  }, [getConversation]);
+  useFocusEffect(
+    useCallback(() => {
+      void getConversation();
+    }, [getConversation])
+  );
 
   const filteredChats = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();

@@ -3,7 +3,7 @@ import { registerChatSocketListeners } from "@/services/socket/chatSocket";
 import { secureStorage } from "@/services/storage/secureStorage";
 import { showErrorToast, showSuccessToast } from "@/utils/toast";
 import { isAxiosError } from "axios";
-import { router } from "expo-router";
+import { setOnUnauthorizedCallback } from "@/lib/api";
 import { io } from "socket.io-client";
 import { create } from "zustand";
 import {
@@ -87,7 +87,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       secureStorage.setDeviceId(res.trustedDeviceId);
       get().connectSocket();
       showSuccessToast(res.message);
-      router.replace("/(tabs)/chat");
       return true;
     } catch (error) {
       throwError(error);
@@ -171,7 +170,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         trustedDeviceId: null,
       });
       showSuccessToast(resdata?.message);
-      router.replace("/(auth)/login");
     } catch (error) {
       showErrorToast(String(error));
     } finally {
@@ -209,7 +207,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       secureStorage.setDeviceId(res.trustedDeviceId);
       get().connectSocket();
       showSuccessToast(res?.message);
-      router.replace("/(tabs)/chat");
     } catch (error) {
       console.log("Login error:", error);
       get().disconnectSocket();
@@ -234,7 +231,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       canManageDevices: false,
     });
     showSuccessToast("Logout successfully");
-    router.replace("/(auth)/login");
   },
 
   logoutOneSession: async (sessionId: string) => {
@@ -296,9 +292,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const data = await checkUser();
       set({ authUser: data.user, token });
     } catch (error) {
-      set({ authUser: null, token: null, canManageDevices: false });
-      await secureStorage.deleteToken();
-      console.log("Check auth error:", error);
+      if (isAxiosError(error) && error.response?.status === 401) {
+        set({ authUser: null, token: null, canManageDevices: false });
+        await secureStorage.deleteToken();
+      } else {
+        console.warn("Check auth network error (offline?):", error);
+      }
     } finally {
       set({ isCheckingAuth: false });
     }
@@ -345,7 +344,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         canManageDevices: false,
       });
       showErrorToast("You were logged out from this device");
-      router.replace("/(auth)/login");
     });
 
     socket.on("getonlineusers", (users: unknown) => {
@@ -372,4 +370,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 registerAuthSocketSession(() => {
   const { authUser, socket } = useAuthStore.getState();
   return { authUser, socket };
+});
+
+setOnUnauthorizedCallback(async () => {
+  await useAuthStore.getState().logout();
 });

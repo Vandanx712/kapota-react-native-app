@@ -1,5 +1,15 @@
 import React, { memo } from "react";
 import { StyleSheet, Text, View, Pressable } from "react-native";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import Animated, {
+  Extrapolation,
+  interpolate,
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from "react-native-reanimated";
+import { Reply } from "lucide-react-native";
 import { Image } from "expo-image";
 import dayjs from "dayjs";
 import { useTheme } from "@/theme/ThemeProvider";
@@ -16,6 +26,8 @@ export interface MessageBubbleProps {
   onPress?: (message: ChatMessage) => void;
   onLongPress?: (message: ChatMessage) => void;
   onReactionPress?: (message: ChatMessage) => void;
+  onSwipeReply?: (message: ChatMessage) => void;
+  onRetry?: (message: ChatMessage) => void;
 }
 
 function areMessageBubblePropsEqual(
@@ -28,10 +40,15 @@ function areMessageBubblePropsEqual(
     prev.message.reacted === next.message.reacted &&
     prev.message.isSeen === next.message.isSeen &&
     prev.message.isEdited === next.message.isEdited &&
+    prev.message.status === next.message.status &&
     prev.message.deletedForEveryone === next.message.deletedForEveryone &&
+    prev.message.media?._id === next.message.media?._id &&
+    prev.message.seenBy?.length === next.message.seenBy?.length &&
+    prev.message.replyTo === next.message.replyTo &&
     prev.isSelected === next.isSelected &&
     prev.selectionMode === next.selectionMode &&
-    prev.currentUserId === next.currentUserId
+    prev.currentUserId === next.currentUserId &&
+    prev.onRetry === next.onRetry
   );
 }
 
@@ -40,9 +57,12 @@ export const MessageBubble = memo(function MessageBubble({
   conversation,
   currentUserId,
   isSelected = false,
+  selectionMode = false,
   onPress,
   onLongPress,
   onReactionPress,
+  onSwipeReply,
+  onRetry,
 }: MessageBubbleProps) {
   const { theme } = useTheme();
   const colors = theme.colors;
@@ -51,6 +71,47 @@ export const MessageBubble = memo(function MessageBubble({
   const isGroup = Boolean(conversation.isgroup);
   const member = isGroup ? conversation.groupdetail?.membersDetail?.[message.sender] : null;
   const senderName = member?.fullname || "Member";
+
+  const translateX = useSharedValue(0);
+
+  const panGesture = Gesture.Pan()
+    .activeOffsetX([15, 100])
+    .failOffsetY([-15, 15])
+    .enabled(!selectionMode && !message.system && Boolean(onSwipeReply))
+    .onUpdate((event) => {
+      if (event.translationX > 0) {
+        translateX.value = Math.min(event.translationX, 60);
+      }
+    })
+    .onEnd((event) => {
+      if (event.translationX >= 45 && onSwipeReply) {
+        runOnJS(onSwipeReply)(message);
+      }
+      translateX.value = withSpring(0, { damping: 20, stiffness: 250 });
+    });
+
+  const animatedBubbleStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: translateX.value }],
+  }));
+
+  const animatedReplyIconStyle = useAnimatedStyle(() => {
+    const scale = interpolate(
+      translateX.value,
+      [0, 20, 45],
+      [0.2, 0.7, 1],
+      Extrapolation.CLAMP,
+    );
+    const opacity = interpolate(
+      translateX.value,
+      [0, 15, 45],
+      [0, 0.5, 1],
+      Extrapolation.CLAMP,
+    );
+    return {
+      opacity,
+      transform: [{ scale }],
+    };
+  });
 
   if (message.system) {
     return (
@@ -81,15 +142,26 @@ export const MessageBubble = memo(function MessageBubble({
     : "";
 
   return (
-    <Pressable
-      onPress={() => onPress?.(message)}
-      onLongPress={() => onLongPress?.(message)}
-      delayLongPress={220}
-      style={[
-        styles.container,
-        isSelected && { backgroundColor: "rgba(91, 76, 240, 0.14)" },
-      ]}
-    >
+    <GestureDetector gesture={panGesture}>
+      <Animated.View style={[styles.swipeWrapper, animatedBubbleStyle]}>
+        <Animated.View
+          style={[
+            styles.replyIndicator,
+            { backgroundColor: colors.surfaceContainerHighest },
+            animatedReplyIconStyle,
+          ]}
+        >
+          <Reply size={16} color={colors.primary} strokeWidth={2.4} />
+        </Animated.View>
+        <Pressable
+          onPress={() => onPress?.(message)}
+          onLongPress={() => onLongPress?.(message)}
+          delayLongPress={220}
+          style={[
+            styles.container,
+            isSelected && { backgroundColor: "rgba(91, 76, 240, 0.14)" },
+          ]}
+        >
       <View
         style={[
           styles.bubbleWrapper,
@@ -177,6 +249,9 @@ export const MessageBubble = memo(function MessageBubble({
                   source={{ uri: message.post.image.url }}
                   style={styles.sharedPostImage}
                   contentFit="cover"
+                  transition={150}
+                  cachePolicy="memory-disk"
+                  recyclingKey={message.post.image.url}
                 />
               )}
               <View style={styles.sharedPostInfo}>
@@ -259,14 +334,32 @@ export const MessageBubble = memo(function MessageBubble({
             >
               {formattedTime}
             </Text>
-            {isOwn && (
-              <MessageStatus
-                isSeen={isSeenByOther}
-                color="rgba(255,255,255,0.7)"
-                activeColor="#FFFFFF"
-                size={14}
-              />
-            )}
+            {isOwn &&
+              (message.status === "failed" ? (
+                <Pressable
+                  hitSlop={8}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    onRetry?.(message);
+                  }}
+                  style={styles.retryRow}
+                >
+                  <Text style={styles.retryText}>Retry</Text>
+                  <MessageStatus
+                    status="failed"
+                    isSeen={false}
+                    size={13}
+                  />
+                </Pressable>
+              ) : (
+                <MessageStatus
+                  status={message.status}
+                  isSeen={isSeenByOther}
+                  color="rgba(255,255,255,0.7)"
+                  activeColor="#FFFFFF"
+                  size={14}
+                />
+              ))}
           </View>
         </View>
 
@@ -288,12 +381,31 @@ export const MessageBubble = memo(function MessageBubble({
         ) : null}
       </View>
     </Pressable>
+      </Animated.View>
+    </GestureDetector>
   );
 }, areMessageBubblePropsEqual);
 
 export default MessageBubble;
 
 const styles = StyleSheet.create({
+  swipeWrapper: {
+    position: "relative",
+    width: "100%",
+    justifyContent: "center",
+  },
+  replyIndicator: {
+    position: "absolute",
+    left: 8,
+    top: "50%",
+    marginTop: -16,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 0,
+  },
   container: {
     paddingHorizontal: 14,
     paddingVertical: 5,
@@ -426,4 +538,15 @@ const styles = StyleSheet.create({
   reactionText: {
     fontSize: 13,
   },
+  retryRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 3,
+  },
+  retryText: {
+    color: "#FCA5A5",
+    fontSize: 10,
+    fontWeight: "700",
+  },
 });
+

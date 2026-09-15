@@ -44,10 +44,17 @@ export default function NewChatModal({
   const loadMore = useChatStore((state) => state.loadMoreSurroundingUsers);
   const users = useChatStore((state) => state.users);
 
+  const [prevVisible, setPrevVisible] = useState(visible);
+  if (visible !== prevVisible) {
+    setPrevVisible(visible);
+    if (visible) {
+      setQuery("");
+    }
+  }
+
   useEffect(() => {
     if (visible) {
       void getSurroundingUsers();
-      setQuery("");
     }
   }, [visible, getSurroundingUsers]);
 

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "923215804744",
+    "project_id": "kapota-app",
+    "storage_bucket": "kapota-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:923215804744:android:374581aac931e9be085b7d",
+        "android_client_info": {
+          "package_name": "com.kapotachatapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC0k2rv0ZWwME-V-bPrrTDbcEVvMmpegvk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

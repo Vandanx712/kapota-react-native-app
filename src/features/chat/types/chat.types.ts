@@ -47,6 +47,7 @@ export type ChatMessage = {
   sender: string;
   system?: boolean;
   text?: string;
+  status?: "pending" | "sent" | "delivered" | "seen" | "failed";
   updatedAt?: string;
   replyTo?: {
     _id: string;

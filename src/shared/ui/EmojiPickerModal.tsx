@@ -305,12 +305,14 @@ export function EmojiPickerModal({
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<EmojiCategory>("All");
 
-  useEffect(() => {
+  const [prevVisible, setPrevVisible] = useState(visible);
+  if (visible !== prevVisible) {
+    setPrevVisible(visible);
     if (!visible) {
       setSearchQuery("");
       setSelectedCategory("All");
     }
-  }, [visible]);
+  }
 
   const filteredEmojis = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -502,7 +504,7 @@ export function EmojiPickerModal({
                       { color: colors.onSurfaceVariant },
                     ]}
                   >
-                    No emojis found for "{searchQuery}"
+                    {`No emojis found for "${searchQuery}"`}
                   </Text>
                 </View>
               )}

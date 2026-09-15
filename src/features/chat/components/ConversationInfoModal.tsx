@@ -147,50 +147,78 @@ export default function ConversationInfoModal({
     : "member";
   const isAdmin = myRole === "admin";
 
-  // Initialize group data or direct contact data
-  useEffect(() => {
-    if (!visible) return;
-
+  const [prevConversation, setPrevConversation] = useState(conversation);
+  if (conversation !== prevConversation) {
+    setPrevConversation(conversation);
     if (isGroup && groupDetail?.membersDetail) {
       setGroupNameInput(groupDetail.groupname || conversation.name || "");
       setGroupIconUri(groupDetail.groupIcon?.url || null);
 
-      const mapped: ParticipantItem[] = Object.entries(groupDetail.membersDetail).map(
-        ([id, data]) => ({
-          userId: id,
-          role: (data.role as "admin" | "member") || "member",
-          fullname: data.fullname,
-          profilePic: data.profilePic,
-        })
-      );
-      // Sort admins first
+      const mapped: ParticipantItem[] = Object.entries(
+        groupDetail.membersDetail,
+      ).map(([id, data]) => ({
+        fullname: data.fullname,
+        profilePic: data.profilePic,
+        role: (data.role as "admin" | "member") || "member",
+        userId: id,
+      }));
       mapped.sort((a, b) => (a.role === "admin" ? -1 : 1));
       setParticipants(mapped);
-    } else if (!isGroup && conversation.oruserId) {
-      setIsContactLoading(true);
+    }
+  }
+
+  const [prevVisible, setPrevVisible] = useState(visible);
+  if (visible !== prevVisible) {
+    setPrevVisible(visible);
+    if (visible) {
+      if (!isGroup && conversation.oruserId) {
+        setIsContactLoading(true);
+      }
+      if (conversation.conversationId) {
+        setIsLoadingMedia(true);
+      }
+    }
+  }
+
+  // Fetch direct contact data and media when visible
+  useEffect(() => {
+    if (!visible) return;
+
+    let isMounted = true;
+
+    if (!isGroup && conversation.oruserId) {
       contactDetail(conversation.oruserId)
         .then((res) => {
+          if (!isMounted) return;
           if (res?.user) {
             setContactBio(res.user.bio || "No bio yet");
             setContactEmail(res.user.email || null);
           }
         })
         .catch(() => {})
-        .finally(() => setIsContactLoading(false));
+        .finally(() => {
+          if (isMounted) setIsContactLoading(false);
+        });
     }
 
     // Fetch media
     if (conversation.conversationId) {
-      setIsLoadingMedia(true);
       getMessageImages(conversation.conversationId)
         .then((res) => {
+          if (!isMounted) return;
           const imgs = res?.messages || res?.media || [];
           setMediaList(Array.isArray(imgs) ? imgs : []);
         })
         .catch(() => {})
-        .finally(() => setIsLoadingMedia(false));
+        .finally(() => {
+          if (isMounted) setIsLoadingMedia(false);
+        });
     }
-  }, [visible, conversation, isGroup, groupDetail]);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [visible, conversation, isGroup]);
 
   // Handle Pick Group Icon
   const handlePickGroupIcon = async () => {

@@ -14,11 +14,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import {
   Archive,
-  Eye,
-  EyeOff,
   Heart,
   Image as ImageIcon,
-  MoreVertical,
   Plus,
   Share2,
   SlidersHorizontal,
@@ -62,7 +59,7 @@ export default function PostSectionScreen() {
   useEffect(() => {
     resetPosts();
     void loadMyPosts({ reset: true });
-  }, []);
+  }, [loadMyPosts, resetPosts]);
 
   const filteredPosts = useMemo(() => {
     if (activeFilter === "archived") {
@@ -193,6 +190,8 @@ export default function PostSectionScreen() {
                       style={styles.postImage}
                       contentFit="cover"
                       transition={200}
+                      cachePolicy="memory-disk"
+                      recyclingKey={post.image.url}
                     />
                     {post.isArchived && (
                       <View style={styles.archivedOverlayPill}>

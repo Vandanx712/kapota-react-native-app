@@ -1,9 +1,9 @@
 import { StyleSheet, View } from "react-native";
-import { Check, CheckCheck, Clock } from "lucide-react-native";
+import { AlertCircle, Check, CheckCheck, Clock } from "lucide-react-native";
 import { useTheme } from "@/theme/ThemeProvider";
 
 export interface MessageStatusProps {
-  status?: "pending" | "sent" | "delivered" | "seen";
+  status?: "pending" | "sent" | "delivered" | "seen" | "failed";
   isSeen?: boolean;
   size?: number;
   color?: string;
@@ -24,6 +24,18 @@ export function MessageStatus({
   const defaultActive = activeColor ?? colors.primary;
 
   const effectiveStatus = status ?? (isSeen ? "seen" : "delivered");
+
+  if (effectiveStatus === "failed") {
+    return (
+      <View style={styles.container}>
+        <AlertCircle
+          size={size}
+          color={colors.error || "#EF4444"}
+          strokeWidth={2.4}
+        />
+      </View>
+    );
+  }
 
   if (effectiveStatus === "pending") {
     return (

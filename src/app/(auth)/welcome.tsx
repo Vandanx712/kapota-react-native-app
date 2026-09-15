@@ -40,8 +40,8 @@ export default function WelcomeScreen() {
       <View style={styles.bottomContainer}>
         <Text style={styles.legalNotice}>
           Read our{" "}
-          <Text style={styles.legalLink}>Privacy Policy</Text>. Tap
-          "Agree and continue" to accept the{" "}
+          <Text style={styles.legalLink}>Privacy Policy</Text>. Tap &quot;Agree
+          and continue&quot; to accept the{" "}
           <Text style={styles.legalLink}>Terms of Service</Text>.
         </Text>
 

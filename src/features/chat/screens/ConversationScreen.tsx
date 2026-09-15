@@ -1,19 +1,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import * as Clipboard from "expo-clipboard";
 import * as ImagePicker from "expo-image-picker";
 import { isAxiosError } from "axios";
 import {
   ActivityIndicator,
   Alert,
+  BackHandler,
   ImageBackground,
-  KeyboardAvoidingView,
   Platform,
   Pressable,
   StyleSheet,
   Text,
   View,
 } from "react-native";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { FlashList, type FlashListRef } from "@shopify/flash-list";
 import { useAuthStore } from "@/features/auth/store/auth.store";
@@ -35,7 +36,7 @@ import ConversationHeader, {
   ConversationSearchHeader,
   SelectionHeader,
 } from "@/features/chat/components/ConversationHeader";
-import MessageBubble from "@/features/chat/components/MessageBubble";
+import { MessageBubble } from "@/features/chat/components/MessageBubble";
 import ReactionPicker from "@/features/chat/components/ReactionPicker";
 import { useChatStore } from "@/features/chat/store/chat.store";
 import type {
@@ -70,7 +71,6 @@ export default function ConversationScreen() {
   const colors = theme.colors;
   const styles = useMemo(() => createStyles(colors), [colors]);
   const listRef = useRef<FlashListRef<ChatMessage>>(null);
-  const didInitialScrollRef = useRef(false);
   const searchRequestRef = useRef(0);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -115,6 +115,7 @@ export default function ConversationScreen() {
     (state) => state.selectedConversation,
   );
   const sendMessage = useChatStore((state) => state.sendMessage);
+  const retrySendMessage = useChatStore((state) => state.retrySendMessage);
   const setClearChat = useChatStore((state) => state.setClearChat);
   const setConBgimage = useChatStore((state) => state.setConBgimage);
   const setDeletedMessage = useChatStore(
@@ -160,7 +161,6 @@ export default function ConversationScreen() {
         );
     if (!currentContact) return;
 
-    didInitialScrollRef.current = false;
     setSelectedConversation(currentContact);
     void getMessages(conversationId);
 
@@ -247,6 +247,7 @@ export default function ConversationScreen() {
     const didSend = await sendMessage({
       text: data.text,
       image: data.image,
+      imageUri: data.imageUri,
       replyTo: data.replyTo,
     });
     if (didSend) {
@@ -264,14 +265,37 @@ export default function ConversationScreen() {
     else setStopTyping(contact);
   };
 
-  const closeSearch = () => {
+  const closeSearch = useCallback(() => {
     if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
     searchRequestRef.current += 1;
     setIsSearchMode(false);
     setSearchLoading(false);
     setSearchQuery("");
     setSearchResults([]);
-  };
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      const onBackPress = () => {
+        if (selectedMessageIds.length > 0) {
+          setSelectedMessageIds([]);
+          return true;
+        }
+        if (isSearchMode) {
+          closeSearch();
+          return true;
+        }
+        return false;
+      };
+
+      const subscription = BackHandler.addEventListener(
+        "hardwareBackPress",
+        onBackPress
+      );
+
+      return () => subscription.remove();
+    }, [selectedMessageIds.length, isSearchMode, closeSearch])
+  );
 
   const handleSearchText = (value: string) => {
     setSearchQuery(value);
@@ -323,6 +347,17 @@ export default function ConversationScreen() {
     }
   }, []);
 
+  const handleSwipeReply = useCallback((message: ChatMessage) => {
+    setReplyMessage(message);
+  }, []);
+
+  const handleRetryMessage = useCallback(
+    (message: ChatMessage) => {
+      void retrySendMessage(message);
+    },
+    [retrySendMessage],
+  );
+
   const renderMessageItem = useCallback(
     ({ item }: { item: ChatMessage }) => {
       if (!contact) return null;
@@ -335,6 +370,8 @@ export default function ConversationScreen() {
           onLongPress={handleMessageLongPress}
           onPress={toggleMessageSelection}
           selectionMode={isSelectionMode}
+          onSwipeReply={handleSwipeReply}
+          onRetry={handleRetryMessage}
         />
       );
     },
@@ -345,6 +382,8 @@ export default function ConversationScreen() {
       handleMessageLongPress,
       toggleMessageSelection,
       isSelectionMode,
+      handleSwipeReply,
+      handleRetryMessage,
     ],
   );
 
@@ -645,19 +684,37 @@ export default function ConversationScreen() {
               data={displayedMessages}
               extraData={selectedMessageIds}
               keyExtractor={(item) => item._id}
+              keyboardDismissMode={
+                Platform.OS === "ios" ? "interactive" : "on-drag"
+              }
+              keyboardShouldPersistTaps="handled"
+              maintainVisibleContentPosition={{
+                autoscrollToBottomThreshold: 0.2,
+                startRenderingFromBottom: true,
+              }}
               ref={listRef}
               renderItem={renderMessageItem}
               showsVerticalScrollIndicator={false}
-              onContentSizeChange={() => {
-                if (
-                  !isSearchMode &&
-                  !didInitialScrollRef.current &&
-                  messages.length > 0
-                ) {
-                  listRef.current?.scrollToEnd({ animated: false });
-                  didInitialScrollRef.current = true;
-                }
-              }}
+              ListHeaderComponent={
+                !isSearchMode && hasMoreMessages ? (
+                  <Pressable
+                    disabled={isMoreMessagesLoading}
+                    onPress={() => void loadOlderMessages()}
+                    style={styles.loadOlderButton}
+                  >
+                    {isMoreMessagesLoading ? (
+                      <ActivityIndicator
+                        color={colors.primaryContainer}
+                        size="small"
+                      />
+                    ) : (
+                      <Text style={styles.loadOlderText}>
+                        Load older messages
+                      </Text>
+                    )}
+                  </Pressable>
+                ) : null
+              }
               ListEmptyComponent={
                 <View style={styles.centerState}>
                   <Text style={styles.stateText}>
@@ -678,26 +735,6 @@ export default function ConversationScreen() {
                     </Pressable>
                   )}
                 </View>
-              }
-              ListHeaderComponent={
-                !isSearchMode && hasMoreMessages ? (
-                  <Pressable
-                    disabled={isMoreMessagesLoading}
-                    onPress={() => void loadOlderMessages()}
-                    style={styles.loadOlderButton}
-                  >
-                    {isMoreMessagesLoading ? (
-                      <ActivityIndicator
-                        color={colors.primaryContainer}
-                        size="small"
-                      />
-                    ) : (
-                      <Text style={styles.loadOlderText}>
-                        Load older messages
-                      </Text>
-                    )}
-                  </Pressable>
-                ) : null
               }
             />
           )}

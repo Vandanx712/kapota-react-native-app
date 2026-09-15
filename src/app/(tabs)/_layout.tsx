@@ -7,7 +7,6 @@ import {
 } from "lucide-react-native";
 import { useTheme } from "@/theme/ThemeProvider";
 import { useChatStore } from "@/features/chat/store/chat.store";
-import { useMemo } from "react";
 import { Platform, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -15,13 +14,12 @@ export default function TabsLayout() {
   const { theme } = useTheme();
   const colors = theme.colors;
   const insets = useSafeAreaInsets();
-  const conversations = useChatStore((state) => state.conversations);
+  const totalUnreadCount = useChatStore((state) =>
+    state.conversations.reduce((total, con) => total + (con.unseenMsg ?? 0), 0),
+  );
 
-  const totalUnreadCount = useMemo(() => {
-    return conversations.reduce((total, con) => total + (con.unseenMsg ?? 0), 0);
-  }, [conversations]);
-
-  const tabBarHeight = Platform.OS === "ios" ? 54 + insets.bottom : 64;
+  const bottomPadding = Math.max(insets.bottom, 6);
+  const tabBarHeight = 52 + bottomPadding;
 
   return (
     <Tabs
@@ -34,17 +32,17 @@ export default function TabsLayout() {
           fontSize: 11,
           fontWeight: "700",
           letterSpacing: 0.2,
-          marginBottom: Platform.OS === "ios" ? 0 : 6,
+          marginBottom: Platform.OS === "ios" ? 0 : 4,
         },
         tabBarItemStyle: {
-          paddingTop: 8,
+          paddingTop: 6,
         },
         tabBarStyle: {
           backgroundColor: colors.surface,
           borderTopColor: colors.outlineVariant,
           borderTopWidth: StyleSheet.hairlineWidth,
           height: tabBarHeight,
-          paddingBottom: Platform.OS === "ios" ? insets.bottom : 8,
+          paddingBottom: bottomPadding,
           elevation: 8,
           shadowColor: "#000",
           shadowOffset: { width: 0, height: -2 },
