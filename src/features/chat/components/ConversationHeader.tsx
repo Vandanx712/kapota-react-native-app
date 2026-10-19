@@ -5,11 +5,15 @@ import {
   BellOff,
   ChevronLeft,
   ClipboardCopy,
+  Copy,
   EllipsisVertical,
   Eraser,
   Image as ImageIcon,
   Info,
+  Pencil,
+  Reply,
   Search,
+  Smile,
   Trash2,
   Video,
 } from "lucide-react-native";
@@ -184,18 +188,26 @@ export default function ConversationHeader({
 }
 
 type SelectionHeaderProps = {
+  canEdit?: boolean;
   onBack: () => void;
   onCopy: () => void;
   onDelete: () => void;
+  onEdit?: () => void;
   onMessageInfo: () => void;
+  onReact?: () => void;
+  onReply?: () => void;
   selectedCount: number;
 };
 
 export function SelectionHeader({
+  canEdit = false,
   onBack,
   onCopy,
   onDelete,
+  onEdit,
   onMessageInfo,
+  onReact,
+  onReply,
   selectedCount,
 }: SelectionHeaderProps) {
   const { theme } = useTheme();
@@ -219,6 +231,61 @@ export function SelectionHeader({
         </Pressable>
         <Text style={styles.selectionCount}>{selectedCount}</Text>
         <View style={styles.selectionSpacer} />
+
+        {selectedCount === 1 && onReply && (
+          <Pressable
+            accessibilityLabel="Reply"
+            hitSlop={8}
+            onPress={onReply}
+            style={({ pressed }) => [
+              styles.iconButton,
+              pressed && styles.pressed,
+            ]}
+          >
+            <Reply color={colors.onSurface} size={21} strokeWidth={2} />
+          </Pressable>
+        )}
+
+        {selectedCount === 1 && onReact && (
+          <Pressable
+            accessibilityLabel="React"
+            hitSlop={8}
+            onPress={onReact}
+            style={({ pressed }) => [
+              styles.iconButton,
+              pressed && styles.pressed,
+            ]}
+          >
+            <Smile color={colors.onSurface} size={21} strokeWidth={2} />
+          </Pressable>
+        )}
+
+        {canEdit && onEdit && (
+          <Pressable
+            accessibilityLabel="Edit message"
+            hitSlop={8}
+            onPress={onEdit}
+            style={({ pressed }) => [
+              styles.iconButton,
+              pressed && styles.pressed,
+            ]}
+          >
+            <Pencil color={colors.onSurface} size={20} strokeWidth={2} />
+          </Pressable>
+        )}
+
+        <Pressable
+          accessibilityLabel="Copy message"
+          hitSlop={8}
+          onPress={onCopy}
+          style={({ pressed }) => [
+            styles.iconButton,
+            pressed && styles.pressed,
+          ]}
+        >
+          <Copy color={colors.onSurface} size={20} strokeWidth={2} />
+        </Pressable>
+
         <Pressable
           accessibilityLabel="Delete selected messages"
           hitSlop={8}
@@ -228,8 +295,9 @@ export function SelectionHeader({
             pressed && styles.pressed,
           ]}
         >
-          <Trash2 color={colors.onSurface} size={22} strokeWidth={2} />
+          <Trash2 color={colors.onSurface} size={21} strokeWidth={2} />
         </Pressable>
+
         <Pressable
           accessibilityLabel="More selection options"
           hitSlop={8}

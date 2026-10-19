@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -51,30 +51,19 @@ const AUTO_DOWNLOAD_OPTIONS: AutoDownloadOption[] = [
   { value: 100 * 1024 * 1024, label: "100 MB", description: "Maximum — Auto-download all media", badge: "Max" },
 ];
 
-const EMPTY_STATS: StorageBreakdownStats = {
-  totalBytes: 0,
-  totalCount: 0,
-  totalFormatted: "0 KB",
-  photos: { bytes: 0, count: 0, formatted: "0 KB" },
-  audio: { bytes: 0, count: 0, formatted: "0 KB" },
-  videos: { bytes: 0, count: 0, formatted: "0 KB" },
-  documents: { bytes: 0, count: 0, formatted: "0 KB" },
-};
-
 export default function MediaSectionScreen() {
   const { theme } = useTheme();
   const colors = theme.colors;
-  const styles = useMemo(() => createStyles(colors), [colors]);
+  const styles = createStyles(colors);
 
-  const initialAutoDownload = useAuthStore(
-    (state) => state.authUser?.mediaSettings?.autoDownload ?? true
-  );
-  const initialLimit = useAuthStore(
-    (state) => state.authUser?.mediaSettings?.maxAutoDownloadBytes ?? 10 * 1024 * 1024
-  );
+  const { authUser } = useAuthStore();
 
-  const [isAutoDownload, setIsAutoDownload] = useState(initialAutoDownload);
-  const [currentLimit, setCurrentLimit] = useState(initialLimit);
+  const [isAutoDownload, setIsAutoDownload] = useState(
+    authUser?.mediaSettings?.autoDownload ?? true
+  );
+  const [currentLimit, setCurrentLimit] = useState(
+    authUser?.mediaSettings?.maxAutoDownloadBytes ?? 10 * 1024 * 1024
+  );
   const [isUpdating, setIsUpdating] = useState(false);
 
   // Network toggles
@@ -85,24 +74,9 @@ export default function MediaSectionScreen() {
   const [isRefreshingStats, setIsRefreshingStats] = useState(false);
   const [clearDialogOpen, setClearDialogOpen] = useState(false);
   const [isClearingCache, setIsClearingCache] = useState(false);
-  const [storageStats, setStorageStats] = useState<StorageBreakdownStats>(EMPTY_STATS);
-
-  useEffect(() => {
-    let isMounted = true;
-    const timer = setTimeout(() => {
-      try {
-        const stats = mediaStorageService.getStorageStats();
-        if (isMounted) setStorageStats(stats);
-      } catch (err) {
-        console.warn("Failed to get storage stats:", err);
-      }
-    }, 100);
-
-    return () => {
-      isMounted = false;
-      clearTimeout(timer);
-    };
-  }, []);
+  const [storageStats, setStorageStats] = useState<StorageBreakdownStats>(() =>
+    mediaStorageService.getStorageStats()
+  );
 
   const handleToggleAutoDownload = async (val: boolean) => {
     setIsAutoDownload(val);
@@ -115,12 +89,12 @@ export default function MediaSectionScreen() {
       useAuthStore.setState((state) => ({
         authUser: state.authUser
           ? {
-            ...state.authUser,
-            mediaSettings: {
-              autoDownload: val,
-              maxAutoDownloadBytes: currentLimit,
-            },
-          }
+              ...state.authUser,
+              mediaSettings: {
+                autoDownload: val,
+                maxAutoDownloadBytes: currentLimit,
+              },
+            }
           : null,
       }));
       showSuccessToast(val ? "Auto-download enabled" : "Auto-download disabled");
@@ -145,12 +119,12 @@ export default function MediaSectionScreen() {
       useAuthStore.setState((state) => ({
         authUser: state.authUser
           ? {
-            ...state.authUser,
-            mediaSettings: {
-              autoDownload: isAutoDownload,
-              maxAutoDownloadBytes: limitBytes,
-            },
-          }
+              ...state.authUser,
+              mediaSettings: {
+                autoDownload: isAutoDownload,
+                maxAutoDownloadBytes: limitBytes,
+              },
+            }
           : null,
       }));
       showSuccessToast("Download limit updated");
@@ -181,7 +155,7 @@ export default function MediaSectionScreen() {
       const freshStats = mediaStorageService.clearMediaCache();
       setStorageStats(freshStats);
       setClearDialogOpen(false);
-      showSuccessToast("Media files cleared");
+      showSuccessToast("Cached media files cleared");
     } catch {
       showErrorToast("Failed to clear media cache");
     } finally {
@@ -190,7 +164,7 @@ export default function MediaSectionScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.screen} edges={["top", "left", "right"]}>
+    <SafeAreaView style={styles.screen} edges={["left", "right"]}>
       <AppHeader
         title="Media & Storage"
         showBack
@@ -314,6 +288,51 @@ export default function MediaSectionScreen() {
           </View>
         </View>
 
+        {/* SECTION: NETWORK RULES */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <View style={[styles.sectionIconWrap, { backgroundColor: `${colors.secondary}20` }]}>
+              <Wifi size={18} color={colors.secondary} />
+            </View>
+            <View style={styles.sectionTitleBlock}>
+              <Text style={styles.sectionTitle}>Network Usage</Text>
+              <Text style={styles.sectionSubtitle}>
+                Control when media is downloaded across network connections.
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.cardBox}>
+            <View style={styles.preferenceRow}>
+              <View style={styles.prefCopy}>
+                <Text style={styles.prefLabel}>Wi-Fi only downloads</Text>
+                <Text style={styles.prefDesc}>Never auto-download media over cellular data</Text>
+              </View>
+              <Switch
+                value={wifiOnly}
+                onValueChange={setWifiOnly}
+                trackColor={{ false: colors.outlineVariant, true: colors.primaryContainer }}
+                thumbColor="#FFFFFF"
+              />
+            </View>
+
+            <View style={styles.separator} />
+
+            <View style={styles.preferenceRow}>
+              <View style={styles.prefCopy}>
+                <Text style={styles.prefLabel}>When roaming</Text>
+                <Text style={styles.prefDesc}>Allow auto-download while international roaming</Text>
+              </View>
+              <Switch
+                value={roamingDownload}
+                onValueChange={setRoamingDownload}
+                trackColor={{ false: colors.outlineVariant, true: colors.primaryContainer }}
+                thumbColor="#FFFFFF"
+              />
+            </View>
+          </View>
+        </View>
+
         {/* SECTION: STORAGE & LOCAL CACHE */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -346,15 +365,12 @@ export default function MediaSectionScreen() {
                 <HardDrive size={22} color={colors.primaryContainer} />
               </View>
               <View style={styles.heroCopy}>
-                <Text style={styles.heroTitle}>Total Storage</Text>
+                <Text style={styles.heroTitle}>Total Cached Storage</Text>
                 <Text style={styles.heroSubtitle}>
                   {storageStats.totalCount} {storageStats.totalCount === 1 ? "file" : "files"} offline ({storageStats.totalFormatted})
                 </Text>
                 <Text style={styles.heroNote}>
                   Stored locally on this device for instant viewing without re-downloading.
-                </Text>
-                <Text style={[styles.heroNote, { color: colors.primaryContainer, fontWeight: "600", marginTop: 4 }]}>
-                  📁 {mediaStorageService.getDisplayPath()}
                 </Text>
               </View>
             </View>
@@ -403,7 +419,7 @@ export default function MediaSectionScreen() {
             <View style={styles.separator} />
 
             <PrimaryButton
-              label="Clear media"
+              label="Clear cached media"
               icon={Trash2}
               variant="danger"
               disabled={storageStats.totalCount === 0 || isClearingCache}
@@ -418,7 +434,7 @@ export default function MediaSectionScreen() {
       {/* CLEAR CACHE CONFIRMATION */}
       <ConfirmationDialog
         visible={clearDialogOpen}
-        title="Clear media?"
+        title="Clear cached media?"
         message="This will delete downloaded photos, audio, and documents from this device. Messages and chats will not be deleted."
         confirmLabel="Clear Cache"
         isDestructive

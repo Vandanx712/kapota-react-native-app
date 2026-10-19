@@ -1,10 +1,10 @@
+import { View } from "react-native";
 import ProfileScreen from "@/features/profile/screens/ProfileScreen";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function ProfileEditRoute() {
   return (
-    <SafeAreaView style={{ flex: 1 }} edges={["top", "left", "right"]}>
+    <View style={{ flex: 1 }}>
       <ProfileScreen />
-    </SafeAreaView>
+    </View>
   );
 }

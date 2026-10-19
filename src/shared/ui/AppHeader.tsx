@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { StyleSheet, Text, View, Pressable, Platform } from "react-native";
 import { ArrowLeft } from "lucide-react-native";
 import { useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "@/theme/ThemeProvider";
 import { Avatar } from "./Avatar";
 
@@ -35,6 +36,7 @@ export function AppHeader({
   onTitlePress,
 }: AppHeaderProps) {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { theme } = useTheme();
   const colors = theme.colors;
 
@@ -54,6 +56,8 @@ export function AppHeader({
           backgroundColor: colors.surface,
           borderBottomColor: colors.outlineVariant,
           borderBottomWidth: borderBottom ? StyleSheet.hairlineWidth : 0,
+          paddingTop: insets.top,
+          height: (Platform.OS === "ios" ? 54 : 58) + insets.top,
         },
       ]}
     >

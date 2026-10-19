@@ -176,7 +176,6 @@ export default function LinkedDevicesSectionScreen() {
         styles.screen,
         {
           backgroundColor: colors.background,
-          paddingTop: insets.top,
         },
       ]}
     >

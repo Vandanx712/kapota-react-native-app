@@ -18,6 +18,7 @@ export type OutboxMessageItem = {
     image?: string;
     imageUri?: string;
     replyTo?: string;
+    replyToId?: string;
     postId?: string;
     mediaId?: string;
   };

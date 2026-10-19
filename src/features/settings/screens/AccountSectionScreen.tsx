@@ -93,7 +93,6 @@ export default function AccountSectionScreen() {
         styles.screen,
         {
           backgroundColor: colors.background,
-          paddingTop: insets.top,
         },
       ]}
     >

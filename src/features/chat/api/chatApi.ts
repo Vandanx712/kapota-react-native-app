@@ -163,6 +163,19 @@ export const updateMessage = async (
   return response.data;
 };
 
+export const reactToMessage = async (
+  messageId: string,
+  data: { conversationId: string; emoji: string },
+) => {
+  const response = await api.put<{
+    message: string;
+    reaction: string;
+    success: boolean;
+    updatedMessage: ChatMessage;
+  }>(`/message/${messageId}/reaction`, data);
+  return response.data;
+};
+
 export const deleteMessage = async (
   messageId: string,
   data: Record<string, unknown>,

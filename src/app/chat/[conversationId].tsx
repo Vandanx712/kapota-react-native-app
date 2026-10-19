@@ -1,11 +1,11 @@
-import { SafeAreaView } from "react-native-safe-area-context";
+import { View } from "react-native";
 
 import ConversationScreen from "@/features/chat/screens/ConversationScreen";
 
 export default function ChatConversationRoute() {
   return (
-    <SafeAreaView style={{ flex: 1 }} edges={["top", "left", "right"]}>
+    <View style={{ flex: 1 }}>
       <ConversationScreen />
-    </SafeAreaView>
+    </View>
   );
 }

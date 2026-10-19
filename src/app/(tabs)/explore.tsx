@@ -84,7 +84,6 @@ export default function ExploreScreen() {
         styles.screen,
         {
           backgroundColor: colors.background,
-          paddingTop: insets.top,
         },
       ]}
     >
@@ -95,6 +94,8 @@ export default function ExploreScreen() {
           {
             backgroundColor: colors.surface,
             borderBottomColor: colors.outlineVariant,
+            paddingTop: insets.top,
+            height: 56 + insets.top,
           },
         ]}
       >

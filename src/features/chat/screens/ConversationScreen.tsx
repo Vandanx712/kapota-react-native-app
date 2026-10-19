@@ -39,6 +39,7 @@ import ConversationHeader, {
 import { MessageBubble } from "@/features/chat/components/MessageBubble";
 import ReactionPicker from "@/features/chat/components/ReactionPicker";
 import { useChatStore } from "@/features/chat/store/chat.store";
+import { useCallStore } from "@/features/call/store/call.store";
 import type {
   ChatMessage,
   MediaAsset,
@@ -82,6 +83,7 @@ export default function ConversationScreen() {
   const [messageInfoVisible, setMessageInfoVisible] = useState(false);
   const [reactionMessage, setReactionMessage] =
     useState<ChatMessage | null>(null);
+  const [editingMessage, setEditingMessage] = useState<ChatMessage | null>(null);
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<ChatMessage[]>([]);
@@ -93,6 +95,8 @@ export default function ConversationScreen() {
   const clearSelectedConversation = useChatStore(
     (state) => state.clearSelectedConversation,
   );
+  const editMessage = useChatStore((state) => state.editMessage);
+  const reactToMessage = useChatStore((state) => state.reactToMessage);
   const conversations = useChatStore((state) => state.conversations);
   const getConversation = useChatStore((state) => state.getConversation);
   const getMessages = useChatStore((state) => state.getMessages);
@@ -229,6 +233,12 @@ export default function ConversationScreen() {
       );
     });
 
+  const canEdit =
+    selectedMessages.length === 1 &&
+    selectedMessages[0].sender === authUser?._id &&
+    !selectedMessages[0].deletedForEveryone &&
+    Boolean(selectedMessages[0].text);
+
   const [replyMessage, setReplyMessage] = useState<ChatMessage | null>(null);
 
   const handleSend = async (data: {
@@ -236,6 +246,8 @@ export default function ConversationScreen() {
     image?: string;
     imageUri?: string;
     replyTo?: string;
+    replyToId?: string;
+    replyMessage?: ChatMessage | null;
   }) => {
     if (data.imageUri) {
       void mediaStorageService.cacheSenderMedia(
@@ -249,6 +261,8 @@ export default function ConversationScreen() {
       image: data.image,
       imageUri: data.imageUri,
       replyTo: data.replyTo,
+      replyToId: data.replyToId,
+      replyMessage: data.replyMessage,
     });
     if (didSend) {
       setReplyMessage(null);
@@ -388,34 +402,22 @@ export default function ConversationScreen() {
   );
 
   const handleReaction = async (emoji: string) => {
-    if (!reactionMessage || !contact) return;
+    if (!reactionMessage) return;
+    const targetId = reactionMessage._id;
     const previousReaction = reactionMessage.reacted ?? null;
-    const nextReaction = previousReaction === emoji ? "" : emoji;
-    const optimisticMessage = {
-      ...reactionMessage,
-      reacted: nextReaction || null,
-    };
+    const nextReaction = previousReaction === emoji ? null : emoji;
 
-    setReactedMsg(optimisticMessage);
     setSearchResults((current) =>
       current.map((message) =>
-        message._id === reactionMessage._id ? optimisticMessage : message,
+        message._id === targetId
+          ? { ...message, reacted: nextReaction }
+          : message,
       ),
     );
     setReactionMessage(null);
     setSelectedMessageIds([]);
 
-    try {
-      await updateMessage(reactionMessage._id, {
-        conversationId: contact.conversationId,
-        emoji: nextReaction,
-        text: "",
-      });
-    } catch (error) {
-      const reverted = { ...reactionMessage, reacted: previousReaction };
-      setReactedMsg(reverted);
-      showErrorToast(getErrorMessage(error, "Unable to add reaction"));
-    }
+    await reactToMessage(targetId, emoji);
   };
 
   const deleteSelectedMessages = async (
@@ -620,13 +622,34 @@ export default function ConversationScreen() {
       <View style={styles.headerArea}>
         {isSelectionMode ? (
           <SelectionHeader
+            canEdit={canEdit}
             onBack={() => setSelectedMessageIds([])}
             onCopy={() => void copySelectedMessages()}
             onDelete={() => {
               setDeleteEligibilityTime(Date.now());
               setDeleteModalVisible(true);
             }}
+            onEdit={() => {
+              if (selectedMessages.length === 1) {
+                setEditingMessage(selectedMessages[0]);
+                setSelectedMessageIds([]);
+              }
+            }}
             onMessageInfo={() => setMessageInfoVisible(true)}
+            onReact={() => {
+              if (
+                selectedMessages.length === 1 &&
+                !selectedMessages[0].deletedForEveryone
+              ) {
+                setReactionMessage(selectedMessages[0]);
+              }
+            }}
+            onReply={() => {
+              if (selectedMessages.length === 1) {
+                setReplyMessage(selectedMessages[0]);
+                setSelectedMessageIds([]);
+              }
+            }}
             selectedCount={selectedMessageIds.length}
           />
         ) : isSearchMode ? (
@@ -651,12 +674,15 @@ export default function ConversationScreen() {
             }}
             onSearch={() => setIsSearchMode(true)}
             onSetBackground={() => void pickChatBackground()}
+            onVideoCall={() =>
+              void useCallStore.getState().startOutgoingCall(contact)
+            }
           />
         )}
       </View>
 
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior="padding"
         keyboardVerticalOffset={0}
         style={styles.body}
       >
@@ -750,10 +776,20 @@ export default function ConversationScreen() {
         {!isSelectionMode && !isSearchMode && (
           <View style={styles.inputArea}>
             <ChatInputBar
+              editingMessage={editingMessage}
+              onCancelEdit={() => setEditingMessage(null)}
+              onCancelReply={() => setReplyMessage(null)}
+              onSaveEdit={async (text) => {
+                if (!editingMessage) return false;
+                const ok = await editMessage(editingMessage._id, text);
+                if (ok) {
+                  setEditingMessage(null);
+                }
+                return ok;
+              }}
               onSend={handleSend}
               onTypingChange={handleTypingChange}
               replyMessage={replyMessage}
-              onCancelReply={() => setReplyMessage(null)}
             />
           </View>
         )}

@@ -59,10 +59,8 @@ export const deletePost = async (postId: string) => {
   return response.data;
 };
 
-export const getSuggestion = async (coords?: { lat: number; lng: number }) => {
-  const response = await api.get("/service/get/places", {
-    params: coords ? { lat: coords.lat, lng: coords.lng } : undefined,
-  });
+export const getSuggestion = async () => {
+  const response = await api.get("/service/get/places");
   return response.data;
 };
 

@@ -50,8 +50,11 @@ export type ChatMessage = {
   status?: "pending" | "sent" | "delivered" | "seen" | "failed";
   updatedAt?: string;
   replyTo?: {
-    _id: string;
+    _id?: string;
+    messageId?: string;
     text?: string;
+    preview?: string;
+    deleted?: boolean;
     image?: MediaAsset | null;
     sender?: string;
   } | null;

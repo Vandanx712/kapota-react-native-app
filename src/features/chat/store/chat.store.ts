@@ -10,7 +10,9 @@ import {
     getAllUsers,
     getConversations,
     getMessages as getMessagesRequest,
+    reactToMessage as reactToMessageRequest,
     sendMessage as sendMessageRequest,
+    updateMessage as updateMessageRequest,
 } from "../api/chatApi";
 import type { ChatMessage, ChatUser, Conversation } from "../types/chat.types";
 import type { ChatState } from "../types/store.types";
@@ -344,6 +346,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
     const { authUser } = getAuthSocketSession();
     const tempId = `temp_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    const replyTarget = data.replyMessage ?? null;
+    const replyToId = data.replyToId ?? data.replyTo ?? replyTarget?._id;
+    const optimisticReplyTo = replyTarget
+      ? {
+          messageId: replyTarget._id,
+          sender: replyTarget.sender,
+          preview: replyTarget.text || (replyTarget.image ? "Photo" : "Message"),
+          deleted: false,
+        }
+      : null;
+
     const optimisticMessage: ChatMessage = {
       _id: tempId,
       conversationId: selectedConversation.conversationId,
@@ -351,7 +364,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       text: data.text,
       createdAt: new Date().toISOString(),
       status: "pending",
-      replyTo: null,
+      replyTo: optimisticReplyTo,
       ...(data.imageUri
         ? {
             media: {
@@ -378,7 +391,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
     );
     appStorage.addToOutbox({
       createdAt: optimisticMessage.createdAt!,
-      data,
+      data: {
+        ...data,
+        replyToId: replyToId || undefined,
+      },
       conversationId: selectedConversation.conversationId,
       tempId,
     });
@@ -386,7 +402,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
     try {
       const response = await sendMessageRequest(
         selectedConversation.conversationId,
-        data,
+        {
+          ...data,
+          replyToId: replyToId || undefined,
+        },
       );
       if (response.newMessage) {
         const confirmed: ChatMessage = {
@@ -439,10 +458,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
       ),
     }));
 
+    const replyToId = message.replyTo?.messageId ?? message.replyTo?._id;
     const sendData = {
       text: message.text,
       image: message.image?.url,
-      replyTo: message.replyTo?._id,
+      replyToId: replyToId || undefined,
     };
 
     appStorage.addToOutbox({
@@ -493,6 +513,88 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
       // If network error, leave as pending in outbox
       return true;
+    }
+  },
+
+  editMessage: async (messageId: string, newText: string) => {
+    const selectedConversation = get().selectedConversation;
+    if (!selectedConversation) return false;
+
+    const target = get().messages.find((m) => m._id === messageId);
+    if (!target) return false;
+
+    const previousText = target.text;
+    const optimisticMessage: ChatMessage = {
+      ...target,
+      text: newText,
+      isEdited: true,
+    };
+
+    set((state) => ({
+      messages: state.messages.map((m) =>
+        m._id === messageId ? optimisticMessage : m,
+      ),
+    }));
+
+    try {
+      const response = await updateMessageRequest(messageId, {
+        conversationId: selectedConversation.conversationId,
+        text: newText,
+      });
+      if (response?.updatedMessage) {
+        get().setUpdatedMessage(response.updatedMessage);
+      }
+      return true;
+    } catch (error) {
+      set((state) => ({
+        messages: state.messages.map((m) =>
+          m._id === messageId ? { ...m, text: previousText } : m,
+        ),
+      }));
+      showErrorToast(getErrorMessage(error, "Failed to update message"));
+      return false;
+    }
+  },
+
+  reactToMessage: async (messageId: string, emoji: string) => {
+    const selectedConversation = get().selectedConversation;
+    if (!selectedConversation) return false;
+
+    const target = get().messages.find((m) => m._id === messageId);
+    if (!target) return false;
+
+    const previousReaction = target.reacted ?? null;
+    const nextReaction = previousReaction === emoji ? null : emoji;
+
+    const optimisticMessage: ChatMessage = {
+      ...target,
+      reacted: nextReaction,
+    };
+
+    set((state) => ({
+      messages: state.messages.map((m) =>
+        m._id === messageId ? optimisticMessage : m,
+      ),
+    }));
+
+    try {
+      const response = await reactToMessageRequest(messageId, {
+        conversationId: selectedConversation.conversationId,
+        emoji,
+      });
+      if (response?.updatedMessage) {
+        get().setUpdatedMessage(response.updatedMessage);
+        get().setReactedMsg(response.updatedMessage);
+      }
+      return true;
+    } catch (error) {
+      set((state) => ({
+        messages: state.messages.map((m) =>
+          m._id === messageId ? { ...m, reacted: previousReaction } : m,
+        ),
+      }));
+      showErrorToast(getErrorMessage(error, "Unable to update reaction"));
+      return false;
     }
   },
 

@@ -15,7 +15,10 @@
         "android.permission.WRITE_EXTERNAL_STORAGE",
         "android.permission.INTERNET",
         "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.ACCESS_FINE_LOCATION"
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.POST_NOTIFICATIONS"
       ]
     },
     "ios": {
@@ -37,29 +40,11 @@
           }
         }
       ],
-      [
-        "expo-file-system",
-        {
-          "supportsOpeningDocumentsInPlace": true,
-          "enableFileSharing": true
-        }
-      ],
       "expo-image",
       "expo-secure-store",
       "expo-web-browser",
-      [
-        "expo-location",
-        {
-          "locationAlwaysAndWhenInUsePermission": "Allow Kapota to access your location to discover nearby places and connect with your community."
-        }
-      ],
-      [
-        "expo-notifications",
-        {
-          "icon": "./assets/images/kapota-splash-logo.png",
-          "color": "#5B4CF0"
-        }
-      ]
+      "expo-camera",
+      "expo-notifications"
     ],
     "experiments": {
       "typedRoutes": true

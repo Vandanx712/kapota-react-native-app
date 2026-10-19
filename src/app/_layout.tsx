@@ -12,6 +12,8 @@ import { useAuthStore } from "@/features/auth/store/auth.store";
 import { useChatStore } from "@/features/chat/store/chat.store";
 import { useEffect } from "react";
 import SplashScreen from "@/features/auth/screens/SplashScreen";
+import { SafeAreaProvider } from "react-native-safe-area-context";
+import { StatusBar } from "expo-status-bar";
 import { ErrorBoundary } from "@/shared/ui/ErrorBoundary";
 import { OfflineNotice } from "@/shared/ui/OfflineNotice";
 import {
@@ -19,23 +21,26 @@ import {
   registerForPushNotificationsAsync,
   setupNotificationListeners,
 } from "@/services/notifications/notificationService";
+import VideoCallModal from "@/features/call/components/VideoCallModal";
 
 configureNotificationHandler();
 
 export default function RootLayout() {
   return (
-    <ErrorBoundary>
-      <GestureHandlerRootView style={{ flex: 1 }}>
-        <QueryClientProvider client={queryClient}>
-          <KeyboardProvider statusBarTranslucent>
-            <ThemeProvider>
-              <RootApp />
-              <OfflineNotice />
-            </ThemeProvider>
-          </KeyboardProvider>
-        </QueryClientProvider>
-      </GestureHandlerRootView>
-    </ErrorBoundary>
+    <SafeAreaProvider>
+      <ErrorBoundary>
+        <GestureHandlerRootView style={{ flex: 1 }}>
+          <QueryClientProvider client={queryClient}>
+            <KeyboardProvider statusBarTranslucent>
+              <ThemeProvider>
+                <RootApp />
+                <OfflineNotice />
+              </ThemeProvider>
+            </KeyboardProvider>
+          </QueryClientProvider>
+        </GestureHandlerRootView>
+      </ErrorBoundary>
+    </SafeAreaProvider>
   );
 }
 
@@ -98,9 +103,15 @@ function RootApp() {
 
 function RootNavigator({ isAuthenticated }: { isAuthenticated: boolean }) {
   const { theme } = useTheme();
+  const isDarkTheme =
+    theme.name === "dark" ||
+    theme.name === "coffee" ||
+    theme.name === "luxury" ||
+    theme.name === "sunset";
 
   return (
     <>
+      <StatusBar style={isDarkTheme ? "light" : "dark"} />
       <Stack
         screenOptions={{
           contentStyle: { backgroundColor: theme.colors.background },
@@ -152,6 +163,7 @@ function RootNavigator({ isAuthenticated }: { isAuthenticated: boolean }) {
           />
         </Stack.Protected>
       </Stack>
+      {isAuthenticated && <VideoCallModal />}
       <Toast config={toastConfig} />
     </>
   );

@@ -24,7 +24,7 @@ export default function ChatsSectionScreen() {
   const styles = createStyles(colors);
 
   return (
-    <SafeAreaView style={styles.screen} edges={["top", "left", "right"]}>
+    <SafeAreaView style={styles.screen} edges={["left", "right"]}>
       <AppHeader
         title="Chats"
         showBack

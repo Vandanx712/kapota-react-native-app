@@ -109,7 +109,7 @@ export default function HelpSectionScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.screen} edges={["top", "left", "right"]}>
+    <SafeAreaView style={styles.screen} edges={["left", "right"]}>
       <AppHeader
         title="Help & Support"
         showBack

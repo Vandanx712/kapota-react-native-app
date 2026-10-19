@@ -1,6 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import {
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -15,14 +14,13 @@ import { router } from "expo-router";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
-  AlertCircle,
   ArrowLeft,
   Check,
   Eye,
   EyeOff,
   Lock,
   Mail,
-  MapPin,
+  ShieldCheck,
 } from "lucide-react-native";
 
 import { useTheme } from "@/theme/ThemeProvider";
@@ -31,8 +29,6 @@ import { signupSchema, SignupFormData } from "../validation/authScreen";
 import { useAuthStore } from "../store/auth.store";
 import { PrimaryButton } from "@/shared/ui/PrimaryButton";
 import { KapotaLogo } from "../components/KapotaLogo";
-import { locationService } from "@/services/location/locationService";
-import { showErrorToast } from "@/utils/toast";
 
 export default function SignupScreen() {
   const { theme } = useTheme();
@@ -41,9 +37,6 @@ export default function SignupScreen() {
 
   const { isLoading, requestSignupOtp } = useAuthStore();
   const [showPassword, setShowPassword] = useState(false);
-  const [locationAddress, setLocationAddress] = useState<string | null>(null);
-  const [isFetchingLocation, setIsFetchingLocation] = useState(false);
-  const [locationError, setLocationError] = useState<string | null>(null);
 
   const {
     control,
@@ -59,55 +52,13 @@ export default function SignupScreen() {
       email: "",
       password: "",
       gender: "male",
-      location: undefined,
+      location: { lat: 28.6139, lng: 77.2090 },
     },
   });
 
   const selectedGender = watch("gender");
 
-  const detectLocation = useCallback(async (isManual = false) => {
-    setIsFetchingLocation(true);
-    setLocationError(null);
-    try {
-      const result = await locationService.getCurrentLocation(isManual);
-      if (result.success && result.coords) {
-        setValue("location", result.coords);
-        setLocationAddress(
-          result.address ||
-            `${result.coords.lat.toFixed(4)}, ${result.coords.lng.toFixed(4)}`
-        );
-        return result.coords;
-      } else {
-        const err = result.error || "Could not detect location";
-        setLocationError(err);
-        if (isManual) showErrorToast(err);
-        return null;
-      }
-    } catch {
-      const err = "Failed to access device location";
-      setLocationError(err);
-      if (isManual) showErrorToast(err);
-      return null;
-    } finally {
-      setIsFetchingLocation(false);
-    }
-  }, [setValue]);
-
-  useEffect(() => {
-    void detectLocation(false);
-  }, [detectLocation]);
-
   const onSubmit = async (data: SignupFormData) => {
-    let location = data.location;
-    if (!location || location.lat == null || location.lng == null) {
-      const detected = await detectLocation(true);
-      if (!detected) {
-        showErrorToast("Location permission is required to create your account.");
-        return;
-      }
-      data.location = detected;
-    }
-
     const success = await requestSignupOtp(data);
     if (success) {
       router.push("/(auth)/otp");
@@ -313,63 +264,12 @@ export default function SignupScreen() {
               )}
             </View>
 
-            {/* LOCATION CARD */}
-            <View style={styles.fieldBlock}>
-              <Text style={styles.fieldLabel}>Location</Text>
-              <Pressable
-                onPress={() => detectLocation(true)}
-                style={[
-                  styles.locationCard,
-                  Boolean(locationAddress) && styles.locationCardActive,
-                  Boolean(locationError && !locationAddress) && styles.locationCardError,
-                ]}
-              >
-                <View style={styles.locationCardLeft}>
-                  {isFetchingLocation ? (
-                    <ActivityIndicator size="small" color={colors.primary} />
-                  ) : locationAddress ? (
-                    <MapPin size={20} color={colors.primary} />
-                  ) : (
-                    <AlertCircle size={20} color={colors.outline} />
-                  )}
-                  <View style={styles.locationCardTextWrap}>
-                    <Text
-                      style={[
-                        styles.locationCardTitle,
-                        Boolean(locationAddress) && { color: colors.onSurface },
-                      ]}
-                      numberOfLines={1}
-                    >
-                      {isFetchingLocation
-                        ? "Detecting your location..."
-                        : locationAddress || (locationError ?? "Tap to detect location")}
-                    </Text>
-                    <Text style={styles.locationCardSub} numberOfLines={1}>
-                      {locationAddress
-                        ? "Used for nearby places & community feed"
-                        : "Tap to grant GPS permission"}
-                    </Text>
-                  </View>
-                </View>
-
-                <Pressable
-                  onPress={() => detectLocation(true)}
-                  disabled={isFetchingLocation}
-                  style={styles.refreshLocationBtn}
-                >
-                  <Text style={[styles.refreshLocationText, { color: colors.primary }]}>
-                    {isFetchingLocation ? "..." : locationAddress ? "Refresh" : "Enable"}
-                  </Text>
-                </Pressable>
-              </Pressable>
-            </View>
-
             {/* SUBMIT BUTTON */}
             <View style={styles.submitBlock}>
               <PrimaryButton
                 label="Continue to verification"
                 variant="primary"
-                loading={isLoading || isFetchingLocation}
+                loading={isLoading}
                 onPress={handleSubmit(onSubmit)}
                 fullWidth
               />
@@ -515,54 +415,6 @@ const createStyles = (colors: ReturnType<typeof useTheme>["theme"]["colors"]) =>
     genderTextSelected: {
       color: colors.onPrimary,
       fontWeight: "700",
-    },
-    locationCard: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm + 4,
-      backgroundColor: colors.surfaceContainerHigh,
-      borderRadius: radius.md,
-      borderWidth: 1,
-      borderColor: colors.outlineVariant,
-    },
-    locationCardActive: {
-      borderColor: colors.primary + "60",
-      backgroundColor: colors.primary + "0A",
-    },
-    locationCardError: {
-      borderColor: colors.error + "60",
-    },
-    locationCardLeft: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: spacing.sm,
-      flex: 1,
-      marginRight: spacing.sm,
-    },
-    locationCardTextWrap: {
-      flex: 1,
-    },
-    locationCardTitle: {
-      ...typography.bodySm,
-      fontWeight: "600",
-      color: colors.onSurfaceVariant,
-    },
-    locationCardSub: {
-      ...typography.labelMd,
-      color: colors.outline,
-      marginTop: 2,
-    },
-    refreshLocationBtn: {
-      paddingHorizontal: spacing.sm + 2,
-      paddingVertical: 4,
-      borderRadius: radius.full,
-      backgroundColor: colors.surfaceContainer,
-    },
-    refreshLocationText: {
-      ...typography.labelMd,
-      fontWeight: "600",
     },
     submitBlock: {
       marginTop: spacing.sm,

@@ -116,7 +116,7 @@ export default function ChatScreen() {
   };
 
   return (
-    <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+    <View style={[styles.screen, { backgroundColor: colors.background }]}>
       {/* Top Header */}
       <Header
         onSearchPress={() => {

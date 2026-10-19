@@ -39,8 +39,7 @@ export function Avatar({
   }, [name]);
 
   const hasValidUri = Boolean(uri && failedUri !== uri);
-  const statusSize = Math.max(10, Math.round(size * 0.24));
-  const indicatorOffset = Math.round(size * 0.02);
+  const statusSize = Math.max(12, Math.round(size * 0.28));
 
   const content = (
     <View
@@ -49,63 +48,73 @@ export function Avatar({
         {
           width: size,
           height: size,
-          borderRadius: size / 2,
-          backgroundColor: colors.surfaceContainerHigh,
-          borderColor: borderWidth > 0 ? colors.outlineVariant : "transparent",
-          borderWidth,
         },
       ]}
     >
-      {hasValidUri ? (
-        <Image
-          source={{ uri: uri! }}
-          style={{ width: size, height: size, borderRadius: size / 2 }}
-          contentFit="cover"
-          transition={150}
-          cachePolicy="memory-disk"
-          recyclingKey={uri!}
-          priority="high"
-          onError={() => setFailedUri(uri ?? null)}
-        />
-      ) : isGroup ? (
-        <View
-          style={[
-            styles.fallback,
-            {
-              width: size,
-              height: size,
-              borderRadius: size / 2,
-              backgroundColor: colors.surfaceContainerHighest,
-            },
-          ]}
-        >
-          <Users size={Math.round(size * 0.48)} color={colors.primary} />
-        </View>
-      ) : (
-        <View
-          style={[
-            styles.fallback,
-            {
-              width: size,
-              height: size,
-              borderRadius: size / 2,
-              backgroundColor: colors.surfaceContainerHighest,
-            },
-          ]}
-        >
-          <Text
+      <View
+        style={[
+          styles.imageWrapper,
+          {
+            width: size,
+            height: size,
+            borderRadius: size / 2,
+            backgroundColor: colors.surfaceContainerHigh,
+            borderColor: borderWidth > 0 ? colors.outlineVariant : "transparent",
+            borderWidth,
+          },
+        ]}
+      >
+        {hasValidUri ? (
+          <Image
+            source={{ uri: uri! }}
+            style={{ width: size, height: size, borderRadius: size / 2 }}
+            contentFit="cover"
+            transition={150}
+            cachePolicy="memory-disk"
+            recyclingKey={uri!}
+            priority="high"
+            onError={() => setFailedUri(uri ?? null)}
+          />
+        ) : isGroup ? (
+          <View
             style={[
-              styles.initials,
+              styles.fallback,
               {
-                fontSize: Math.max(11, Math.round(size * 0.38)),
-                color: colors.primary,
+                width: size,
+                height: size,
+                borderRadius: size / 2,
+                backgroundColor: colors.surfaceContainerHighest,
               },
             ]}
           >
-            {initials}
-          </Text>
-        </View>
-      )}
+            <Users size={Math.round(size * 0.48)} color={colors.primary} />
+          </View>
+        ) : (
+          <View
+            style={[
+              styles.fallback,
+              {
+                width: size,
+                height: size,
+                borderRadius: size / 2,
+                backgroundColor: colors.surfaceContainerHighest,
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.initials,
+                {
+                  fontSize: Math.max(11, Math.round(size * 0.38)),
+                  color: colors.primary,
+                },
+              ]}
+            >
+              {initials}
+            </Text>
+          </View>
+        )}
+      </View>
 
       {showStatusIndicator && (
         <View
@@ -117,8 +126,9 @@ export function Avatar({
               borderRadius: statusSize / 2,
               backgroundColor: isOnline ? colors.success : colors.outline,
               borderColor: colors.surface,
-              bottom: indicatorOffset,
-              right: indicatorOffset,
+              borderWidth: 2,
+              bottom: 0,
+              right: 0,
             },
           ]}
         />
@@ -143,6 +153,11 @@ export function Avatar({
 const styles = StyleSheet.create({
   container: {
     position: "relative",
+    overflow: "visible",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  imageWrapper: {
     overflow: "hidden",
     alignItems: "center",
     justifyContent: "center",
@@ -157,8 +172,8 @@ const styles = StyleSheet.create({
   },
   statusIndicator: {
     position: "absolute",
-    borderWidth: 2,
-    zIndex: 2,
+    zIndex: 10,
+    elevation: 4,
   },
   pressed: {
     opacity: 0.8,

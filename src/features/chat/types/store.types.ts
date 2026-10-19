@@ -14,6 +14,8 @@ export type SendMessageInput = {
   mediaId?: string;
   text?: string;
   replyTo?: string;
+  replyToId?: string;
+  replyMessage?: ChatMessage | null;
   postId?: string;
 };
 
@@ -37,11 +39,13 @@ export interface ChatState {
 
   createConversation: (userId: string) => Promise<Conversation | null>;
   clearSelectedConversation: (conversationId?: string) => void;
+  editMessage: (messageId: string, newText: string) => Promise<boolean>;
   getConversation: () => Promise<void>;
   getMessages: (conversationId?: string) => Promise<void>;
   getSurroundingUsers: () => Promise<void>;
   loadMoreSurroundingUsers: () => Promise<void>;
   loadOlderMessages: () => Promise<void>;
+  reactToMessage: (messageId: string, emoji: string) => Promise<boolean>;
   receiveMessage: (message: ChatMessage) => void;
   refreshGroupMember: (
     type: RefreshGroupEvent,

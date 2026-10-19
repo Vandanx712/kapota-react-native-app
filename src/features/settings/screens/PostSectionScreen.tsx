@@ -77,7 +77,7 @@ export default function PostSectionScreen() {
   }, [selectedPostForSheet, myPosts]);
 
   return (
-    <SafeAreaView style={styles.screen} edges={["top", "left", "right"]}>
+    <SafeAreaView style={styles.screen} edges={["left", "right"]}>
       <AppHeader
         title="My Posts"
         showBack

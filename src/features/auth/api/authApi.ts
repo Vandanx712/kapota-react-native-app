@@ -13,7 +13,7 @@ export const requestSignupOtp = async (data: SignupFormData) => {
     email: data.email,
     gender: data.gender,
     password: data.password,
-    location: data.location,
+    location: data.location ?? { lat: 28.6139, lng: 77.2090 },
   });
   return response.data;
 };
@@ -21,7 +21,7 @@ export const requestSignupOtp = async (data: SignupFormData) => {
 export const verifySignupOtpRequest = async (data: VerifySignup) => {
   const response = await api.post("/auth/signup/verify", {
     ...data,
-    location: data.location,
+    location: data.location ?? { lat: 28.6139, lng: 77.2090 },
   });
   return response.data;
 };

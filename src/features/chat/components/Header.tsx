@@ -9,6 +9,7 @@ import {
   Users,
 } from "lucide-react-native";
 import { useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "@/theme/ThemeProvider";
 import { ActionSheet } from "@/shared/ui/ActionSheet";
 
@@ -19,6 +20,7 @@ export interface HeaderProps {
 
 export default function Header({ onSearchPress, onNewGroupPress }: HeaderProps) {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { theme } = useTheme();
   const colors = theme.colors;
   const [menuOpen, setMenuOpen] = useState(false);
@@ -57,6 +59,8 @@ export default function Header({ onSearchPress, onNewGroupPress }: HeaderProps) 
           styles.header,
           {
             backgroundColor: colors.surface,
+            paddingTop: insets.top,
+            height: 54 + insets.top,
           },
         ]}
       >

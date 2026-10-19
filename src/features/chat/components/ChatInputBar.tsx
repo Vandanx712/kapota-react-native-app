@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import {
   ActivityIndicator,
+  Keyboard,
   Pressable,
   StyleSheet,
   Text,
@@ -10,6 +11,7 @@ import {
 } from "react-native";
 import {
   Camera,
+  Check,
   Image as ImageIcon,
   Plus,
   Send,
@@ -33,10 +35,15 @@ export interface ChatInputBarProps {
     image?: string;
     imageUri?: string;
     replyTo?: string;
+    replyToId?: string;
+    replyMessage?: ChatMessage | null;
   }) => Promise<boolean>;
   onTypingChange?: (isTyping: boolean) => void;
   replyMessage?: ChatMessage | null;
   onCancelReply?: () => void;
+  editingMessage?: ChatMessage | null;
+  onCancelEdit?: () => void;
+  onSaveEdit?: (newText: string) => Promise<boolean>;
 }
 
 export default function ChatInputBar({
@@ -44,6 +51,9 @@ export default function ChatInputBar({
   onTypingChange,
   replyMessage,
   onCancelReply,
+  editingMessage,
+  onCancelEdit,
+  onSaveEdit,
 }: ChatInputBarProps) {
   const { theme } = useTheme();
   const colors = theme.colors;
@@ -54,6 +64,26 @@ export default function ChatInputBar({
   const [isSending, setIsSending] = useState(false);
   const [attachmentSheetVisible, setAttachmentSheetVisible] = useState(false);
   const [emojiPickerVisible, setEmojiPickerVisible] = useState(false);
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener("keyboardDidShow", () =>
+      setIsKeyboardVisible(true),
+    );
+    const hideSub = Keyboard.addListener("keyboardDidHide", () =>
+      setIsKeyboardVisible(false),
+    );
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (editingMessage) {
+      setMessage(editingMessage.text ?? "");
+    }
+  }, [editingMessage]);
 
   const handleSelectEmoji = (emoji: string) => {
     handleChangeText(message + emoji);
@@ -142,6 +172,19 @@ export default function ChatInputBar({
     if (!trimmed && !pickedImageUri) return;
     if (isSending) return;
 
+    if (editingMessage && onSaveEdit) {
+      if (!trimmed) return;
+      setIsSending(true);
+      const didSave = await onSaveEdit(trimmed);
+      setIsSending(false);
+      if (didSave) {
+        setMessage("");
+        stopTyping();
+        onCancelEdit?.();
+      }
+      return;
+    }
+
     setIsSending(true);
 
     let imageBase64: string | undefined;
@@ -153,11 +196,14 @@ export default function ChatInputBar({
       }
     }
 
+    const replyId = replyMessage?._id;
     const didSend = await onSend({
       text: trimmed || undefined,
       image: imageBase64,
       imageUri: pickedImageUri || undefined,
-      replyTo: replyMessage?._id,
+      replyTo: replyId,
+      replyToId: replyId,
+      replyMessage: replyMessage ?? null,
     });
     setIsSending(false);
 
@@ -178,10 +224,42 @@ export default function ChatInputBar({
         {
           backgroundColor: colors.surface,
           borderTopColor: colors.outlineVariant,
-          paddingBottom: Math.max(insets.bottom, 8),
+          paddingBottom: isKeyboardVisible ? 6 : Math.max(insets.bottom, 8),
         },
       ]}
     >
+      {/* Editing message preview bar */}
+      {editingMessage && (
+        <View
+          style={[
+            styles.replyBar,
+            {
+              backgroundColor: colors.surfaceContainerHigh,
+              borderLeftColor: colors.primary,
+            },
+          ]}
+        >
+          <View style={styles.replyContent}>
+            <Text style={[styles.replyAuthor, { color: colors.primary }]}>
+              Editing message
+            </Text>
+            <Text
+              numberOfLines={1}
+              style={[styles.replySnippet, { color: colors.onSurfaceVariant }]}
+            >
+              {editingMessage.text}
+            </Text>
+          </View>
+          <Pressable
+            hitSlop={8}
+            onPress={onCancelEdit}
+            style={styles.cancelReplyBtn}
+          >
+            <X size={18} color={colors.onSurfaceVariant} strokeWidth={2.4} />
+          </Pressable>
+        </View>
+      )}
+
       {/* Quoted reply preview bar */}
       {replyMessage && (
         <View
@@ -301,6 +379,8 @@ export default function ChatInputBar({
         >
           {isSending ? (
             <ActivityIndicator size="small" color={colors.onPrimary} />
+          ) : editingMessage ? (
+            <Check size={20} color={colors.onPrimary} strokeWidth={2.4} />
           ) : (
             <Send size={19} color={colors.onPrimary} strokeWidth={2.4} />
           )}

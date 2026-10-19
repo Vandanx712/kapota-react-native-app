@@ -216,7 +216,15 @@ export const MessageBubble = memo(function MessageBubble({
                   { color: isOwn ? colors.onPrimary : colors.primary },
                 ]}
               >
-                Reply
+                {typeof message.replyTo === "object" && message.replyTo?.sender
+                  ? message.replyTo.sender === currentUserId
+                    ? "You"
+                    : isGroup && conversation.groupdetail?.membersDetail?.[message.replyTo.sender]
+                      ? conversation.groupdetail.membersDetail[message.replyTo.sender].fullname
+                      : !isGroup
+                        ? conversation.name
+                        : "Reply"
+                  : "Reply"}
               </Text>
               <Text
                 numberOfLines={2}
@@ -226,7 +234,7 @@ export const MessageBubble = memo(function MessageBubble({
                 ]}
               >
                 {typeof message.replyTo === "object"
-                  ? (message.replyTo as any)?.text || "Quoted message"
+                  ? message.replyTo.preview || message.replyTo.text || "Message"
                   : "Quoted message"}
               </Text>
             </View>

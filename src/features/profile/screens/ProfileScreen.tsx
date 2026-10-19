@@ -237,7 +237,6 @@ export default function ProfileScreen() {
         styles.screen,
         {
           backgroundColor: colors.background,
-          paddingTop: insets.top,
         },
       ]}
     >
@@ -248,6 +247,8 @@ export default function ProfileScreen() {
           {
             backgroundColor: colors.surface,
             borderBottomColor: colors.outlineVariant,
+            paddingTop: insets.top,
+            height: 56 + insets.top,
           },
         ]}
       >

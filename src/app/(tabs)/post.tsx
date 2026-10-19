@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  FlatList,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -9,7 +10,6 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import {
   Camera,
   Check,
@@ -17,6 +17,7 @@ import {
   MapPin,
   Search,
   SlidersHorizontal,
+  Sparkles,
   X,
 } from "lucide-react-native";
 import { Image } from "expo-image";
@@ -36,9 +37,6 @@ import { useSettingsStore } from "@/features/settings/store/settings.store";
 import { PrimaryButton } from "@/shared/ui/PrimaryButton";
 import { radius, spacing, typography } from "@/theme/tokens";
 import { showErrorToast, showSuccessToast } from "@/utils/toast";
-import { locationService } from "@/services/location/locationService";
-import { secureStorage } from "@/services/storage/secureStorage";
-import { uriToDataUri } from "@/utils/imageUtils";
 
 export type FilterName =
   | "Original"
@@ -78,9 +76,6 @@ interface LocationItem {
   lng?: number;
 }
 
-// In-memory cache across tab switches during the app session
-let memoryCachedSuggestions: LocationItem[] | null = null;
-
 export default function CreatePostScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -89,6 +84,7 @@ export default function CreatePostScreen() {
 
   // Post form states
   const [pickedImageUri, setPickedImageUri] = useState<string | null>(null);
+  const [pickedImageBase64, setPickedImageBase64] = useState<string | null>(null);
   const [caption, setCaption] = useState("");
   const [selectedFilter, setSelectedFilter] = useState<FilterName>("Original");
   const [hideLikes, setHideLikes] = useState(false);
@@ -103,90 +99,31 @@ export default function CreatePostScreen() {
     lat: number;
     lng: number;
   } | null>(null);
-  const [locationSuggestions, setLocationSuggestions] = useState<LocationItem[]>(
-    () => memoryCachedSuggestions ?? []
-  );
+  const [locationSuggestions, setLocationSuggestions] = useState<LocationItem[]>([]);
   const [searchResults, setSearchResults] = useState<LocationItem[]>([]);
   const [isSearchingLocation, setIsSearchingLocation] = useState(false);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Load location suggestions: uses cached places first to avoid unnecessary Geoapify API billing.
-  // Calls the places API only on the very first visit or when user explicitly requests a refresh.
+  // Fetch initial location suggestions on mount
   useEffect(() => {
     let isMounted = true;
-
-    async function loadInitial() {
-      // 1. If in-memory cache is already loaded, nothing to do
-      if (memoryCachedSuggestions && memoryCachedSuggestions.length > 0) {
-        return;
-      }
-
-      // 2. Persistent storage check (SecureStore)
-      const stored = await secureStorage.getSuggestedPlaces<LocationItem[]>();
-      if (stored && stored.length > 0) {
-        memoryCachedSuggestions = stored;
-        if (isMounted) {
-          setLocationSuggestions(stored);
+    setIsLoadingSuggestions(true);
+    getSuggestion()
+      .then((res) => {
+        if (isMounted && res?.places) {
+          setLocationSuggestions(res.places);
         }
-        return;
-      }
-
-      // 3. First time only: fetch from API and cache
-      if (isMounted) setIsLoadingSuggestions(true);
-      try {
-        const locResult = await locationService.getCurrentLocation();
-        const coords = locResult.coords ? { lat: locResult.coords.lat, lng: locResult.coords.lng } : undefined;
-        const res = await getSuggestion(coords);
-        if (res?.places && res.places.length > 0) {
-          memoryCachedSuggestions = res.places;
-          await secureStorage.setSuggestedPlaces(res.places);
-          if (isMounted) {
-            setLocationSuggestions(res.places);
-          }
-        }
-      } catch {
-        try {
-          const res = await getSuggestion();
-          if (res?.places && res.places.length > 0) {
-            memoryCachedSuggestions = res.places;
-            await secureStorage.setSuggestedPlaces(res.places);
-            if (isMounted) {
-              setLocationSuggestions(res.places);
-            }
-          }
-        } catch { }
-      } finally {
+      })
+      .catch(() => {})
+      .finally(() => {
         if (isMounted) setIsLoadingSuggestions(false);
-      }
-    }
-
-    void loadInitial();
+      });
 
     return () => {
       isMounted = false;
     };
   }, []);
-
-  const handleRefreshSuggestions = async () => {
-    if (isLoadingSuggestions) return;
-    setIsLoadingSuggestions(true);
-    try {
-      const locResult = await locationService.getCurrentLocation(true);
-      const coords = locResult.coords ? { lat: locResult.coords.lat, lng: locResult.coords.lng } : undefined;
-      const res = await getSuggestion(coords);
-      if (res?.places && res.places.length > 0) {
-        memoryCachedSuggestions = res.places;
-        await secureStorage.setSuggestedPlaces(res.places);
-        setLocationSuggestions(res.places);
-        showSuccessToast("Places updated");
-      }
-    } catch {
-      showErrorToast("Could not refresh places");
-    } finally {
-      setIsLoadingSuggestions(false);
-    }
-  };
 
   // Debounced search for location
   useEffect(() => {
@@ -196,15 +133,13 @@ export default function CreatePostScreen() {
     }
 
     if (!query || query.length < 2) {
-      searchTimeoutRef.current = setTimeout(() => {
-        setSearchResults([]);
-        setIsSearchingLocation(false);
-      }, 0);
+      setSearchResults([]);
+      setIsSearchingLocation(false);
       return;
     }
 
+    setIsSearchingLocation(true);
     searchTimeoutRef.current = setTimeout(async () => {
-      setIsSearchingLocation(true);
       try {
         const res = await searchLocation(query);
         setSearchResults(res?.results || []);
@@ -266,7 +201,7 @@ export default function CreatePostScreen() {
           allowsEditing: true,
           aspect: [4, 5],
           quality: 0.75,
-          // base64: true REMOVED!                                                                                                        
+          base64: true,
         });
       } else {
         result = await ImagePicker.launchImageLibraryAsync({
@@ -274,12 +209,16 @@ export default function CreatePostScreen() {
           allowsEditing: true,
           aspect: [4, 5],
           quality: 0.75,
-          // base64: true REMOVED!                                                                                                        
+          base64: true,
         });
       }
 
       if (!result.canceled && result.assets[0]) {
-        setPickedImageUri(result.assets[0].uri);
+        const asset = result.assets[0];
+        setPickedImageUri(asset.uri);
+        if (asset.base64) {
+          setPickedImageBase64(`data:image/jpeg;base64,${asset.base64}`);
+        }
       }
     } catch {
       showErrorToast("Could not select image");
@@ -287,24 +226,22 @@ export default function CreatePostScreen() {
   };
 
   const handleSharePost = async () => {
-    if (!pickedImageUri) {
+    if (!pickedImageBase64) {
       showErrorToast("Please select an image for your post");
       return;
     }
 
     setIsPosting(true);
     try {
-      const dataUri = await uriToDataUri(pickedImageUri, "image/jpeg");
-
       const response = await createPostApi({
-        image: dataUri,
+        image: pickedImageBase64,
         caption: caption.trim() || undefined,
         location: selectedLocation
           ? {
-            name: selectedLocation.name,
-            type: "Point",
-            coordinates: [selectedLocation.lng, selectedLocation.lat],
-          }
+              name: selectedLocation.name,
+              type: "Point",
+              coordinates: [selectedLocation.lng, selectedLocation.lat],
+            }
           : null,
         hideLikes,
         disableShare,
@@ -315,6 +252,7 @@ export default function CreatePostScreen() {
 
       // Reset fields
       setPickedImageUri(null);
+      setPickedImageBase64(null);
       setCaption("");
       setSelectedFilter("Original");
       setSelectedLocation(null);
@@ -345,7 +283,6 @@ export default function CreatePostScreen() {
         styles.screen,
         {
           backgroundColor: colors.background,
-          paddingTop: insets.top,
         },
       ]}
     >
@@ -356,6 +293,8 @@ export default function CreatePostScreen() {
           {
             backgroundColor: colors.surface,
             borderBottomColor: colors.outlineVariant,
+            paddingTop: insets.top,
+            height: 54 + insets.top,
           },
         ]}
       >
@@ -364,11 +303,10 @@ export default function CreatePostScreen() {
         </Text>
       </View>
 
-      <KeyboardAwareScrollView
+      <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
-        bottomOffset={60}
       >
         {/* Media Picker / Preview */}
         {pickedImageUri ? (
@@ -377,7 +315,6 @@ export default function CreatePostScreen() {
               source={{ uri: pickedImageUri }}
               style={styles.previewImage}
               contentFit="cover"
-              cachePolicy="memory"
             />
             {/* Filter Color Tone Overlay */}
             {currentOverlay && currentOverlay !== "transparent" && (
@@ -392,6 +329,7 @@ export default function CreatePostScreen() {
             <Pressable
               onPress={() => {
                 setPickedImageUri(null);
+                setPickedImageBase64(null);
                 setSelectedFilter("Original");
               }}
               style={[
@@ -587,27 +525,10 @@ export default function CreatePostScreen() {
           ]}
         >
           <View style={styles.sectionHeaderRow}>
-            <View style={styles.sectionHeaderLeft}>
-              <MapPin size={16} color={colors.primary} />
-              <Text style={[styles.sectionLabel, { color: colors.onSurface }]}>
-                ADD LOCATION
-              </Text>
-            </View>
-            {!selectedLocation && (
-              <Pressable
-                hitSlop={8}
-                disabled={isLoadingSuggestions}
-                onPress={handleRefreshSuggestions}
-                style={({ pressed }) => [
-                  styles.refreshPlacesBtn,
-                  pressed && { opacity: 0.6 },
-                ]}
-              >
-                <Text style={[styles.refreshPlacesText, { color: colors.primary }]}>
-                  {isLoadingSuggestions ? "Updating..." : "Refresh"}
-                </Text>
-              </Pressable>
-            )}
+            <MapPin size={16} color={colors.primary} />
+            <Text style={[styles.sectionLabel, { color: colors.onSurface }]}>
+              ADD LOCATION
+            </Text>
           </View>
 
           {/* Selected Location Pill */}
@@ -652,7 +573,7 @@ export default function CreatePostScreen() {
                   placeholderTextColor={colors.outline}
                   style={[styles.locationTextInput, { color: colors.onSurface }]}
                 />
-                {isSearchingLocation || isLoadingSuggestions ? (
+                {isSearchingLocation ? (
                   <ActivityIndicator size="small" color={colors.primary} />
                 ) : locationQuery ? (
                   <Pressable hitSlop={6} onPress={() => setLocationQuery("")}>
@@ -781,13 +702,13 @@ export default function CreatePostScreen() {
         <View style={styles.submitContainer}>
           <PrimaryButton
             label="Share Post"
-            disabled={!pickedImageUri || isPosting}
+            disabled={!pickedImageBase64 || isPosting}
             loading={isPosting}
             onPress={handleSharePost}
             fullWidth
           />
         </View>
-      </KeyboardAwareScrollView>
+      </ScrollView>
     </View>
   );
 }
@@ -890,13 +811,8 @@ const styles = StyleSheet.create({
   sectionHeaderRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: spacing.xs,
-  },
-  sectionHeaderLeft: {
-    flexDirection: "row",
-    alignItems: "center",
     gap: 6,
+    marginBottom: spacing.xs,
   },
   sectionLabel: {
     ...typography.labelMd,
@@ -1037,15 +953,5 @@ const styles = StyleSheet.create({
   },
   submitContainer: {
     marginTop: spacing.xs,
-  },
-  refreshPlacesBtn: {
-    paddingVertical: 2,
-    paddingHorizontal: 6,
-    borderRadius: radius.full,
-  },
-  refreshPlacesText: {
-    ...typography.labelMd,
-    fontSize: 11,
-    fontWeight: "600",
   },
 });

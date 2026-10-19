@@ -1,4 +1,3 @@
-import { Platform } from "react-native";
 import { Directory, File, Paths } from "expo-file-system";
 import { getMediaAccess } from "@/features/chat/api/mediaApi";
 
@@ -85,10 +84,8 @@ class MediaStorageService {
   private categoryDirs: Record<MediaCategory, Directory>;
   private activeDownloads: Map<string, Promise<string>> = new Map();
 
-  private uriCache: Map<string, string> = new Map();
-  private hasWarmedUpCache = false;
   constructor() {
-    this.baseDir = this.resolveBaseDirectory();
+    this.baseDir = new Directory(Paths.document, "Kapota Media");
     this.categoryDirs = {
       photos: new Directory(this.baseDir, "Kapota Images"),
       videos: new Directory(this.baseDir, "Kapota Video"),
@@ -98,97 +95,12 @@ class MediaStorageService {
   }
 
   /**
-   * Warm up the cache by scanning directory names ONCE in the background.
-   */
-  private warmupCache(): void {
-    if (this.hasWarmedUpCache) return;
-    this.hasWarmedUpCache = true;
-    try {
-      this.initMediaDirectories();
-      (Object.keys(this.categoryDirs) as MediaCategory[]).forEach((cat) => {
-        const dir = this.categoryDirs[cat];
-        if (!dir.exists) return;
-        const items = dir.list();
-        items.forEach((item) => {
-          if (item instanceof File && (item.size ?? 0) > 0) {
-            const separatorIndex = item.name.indexOf("_");
-            if (separatorIndex > 0) {
-              const mediaId = item.name.slice(0, separatorIndex);
-              this.uriCache.set(mediaId, item.uri);
-            }
-          }
-        });
-      });
-    } catch (err) {
-      console.warn("Error warming up media URI cache:", err);
-    }
-  }
-
-  private resolveBaseDirectory(): Directory {
-    if (Platform.OS === "android") {
-      try {
-        const androidMedia = new Directory("file:///storage/emulated/0/Android/media");
-        if (androidMedia.exists) {
-          const appMediaDir = new Directory(androidMedia, "com.kapotachatapp");
-          if (!appMediaDir.exists) appMediaDir.create();
-
-          const kapotaDir = new Directory(appMediaDir, "Kapota");
-          if (!kapotaDir.exists) kapotaDir.create();
-
-          const mediaDir = new Directory(kapotaDir, "Media");
-          if (!mediaDir.exists) mediaDir.create();
-
-          return mediaDir;
-        }
-      } catch (err) {
-        console.warn("Could not initialize Android/media folder, falling back to document directory:", err);
-      }
-    }
-
-    const docMedia = new Directory(Paths.document, "Kapota Media");
-    if (!docMedia.exists) {
-      try {
-        docMedia.create();
-      } catch {
-        // ignore
-      }
-    }
-    return docMedia;
-  }
-
-  /**
-   * Returns human-readable path string for UI display.
-   */
-  public getDisplayPath(): string {
-    if (Platform.OS === "android") {
-      if (this.baseDir.uri.includes("Android/media")) {
-        return "Internal storage > Android > media > com.kapotachatapp > Kapota > Media";
-      }
-      return "App Documents > Kapota Media";
-    }
-    return "On My iPhone > Kapota > Kapota Media";
-  }
-
-  /**
-   * Returns the base file URI.
-   */
-  public getBasePath(): string {
-    return this.baseDir.uri;
-  }
-
-  /**
    * Initializes the directory hierarchy if not already existing.
    */
   public initMediaDirectories(): void {
     try {
       if (!this.baseDir.exists) {
-        this.baseDir = this.resolveBaseDirectory();
-        this.categoryDirs = {
-          photos: new Directory(this.baseDir, "Kapota Images"),
-          videos: new Directory(this.baseDir, "Kapota Video"),
-          audio: new Directory(this.baseDir, "Kapota Audio"),
-          documents: new Directory(this.baseDir, "Kapota Documents"),
-        };
+        this.baseDir.create();
       }
       (Object.keys(this.categoryDirs) as MediaCategory[]).forEach((cat) => {
         const dir = this.categoryDirs[cat];
@@ -251,11 +163,32 @@ class MediaStorageService {
     originalName?: string,
     resourceType?: string,
   ): boolean {
-    return Boolean(this.getLocalUri(mediaId, mimeType, originalName, resourceType));
+    try {
+      this.initMediaDirectories();
+      const primaryFile = this.getLocalFile(mediaId, mimeType, originalName, resourceType);
+      if (primaryFile.exists && (primaryFile.size ?? 0) > 0) {
+        return true;
+      }
+
+      // Check category directory for any file starting with mediaId
+      const category = this.getCategory(mimeType, resourceType);
+      const dir = this.categoryDirs[category];
+      if (!dir.exists) return false;
+
+      const items = dir.list();
+      return items.some(
+        (item) =>
+          item instanceof File &&
+          item.name.startsWith(`${mediaId}`) &&
+          (item.size ?? 0) > 0,
+      );
+    } catch {
+      return false;
+    }
   }
 
   /**
-   * Retrieves the local file URI in O(1) time without redundant disk I/O.
+   * Retrieves the local file URI if already downloaded, or null if absent.
    */
   public getLocalUri(
     mediaId: string,
@@ -263,30 +196,29 @@ class MediaStorageService {
     originalName?: string,
     resourceType?: string,
   ): string | null {
-    // 1. Instant RAM Cache check (< 0.001ms)
-    if (this.uriCache.has(mediaId)) {
-      return this.uriCache.get(mediaId)!;
-    }
-
-    // 2. Deterministic single-file existence check (no directory listing)
     try {
       this.initMediaDirectories();
       const primaryFile = this.getLocalFile(mediaId, mimeType, originalName, resourceType);
       if (primaryFile.exists && (primaryFile.size ?? 0) > 0) {
-        this.uriCache.set(mediaId, primaryFile.uri);
         return primaryFile.uri;
       }
+
+      const category = this.getCategory(mimeType, resourceType);
+      const dir = this.categoryDirs[category];
+      if (!dir.exists) return null;
+
+      const items = dir.list();
+      const found = items.find(
+        (item) =>
+          item instanceof File &&
+          item.name.startsWith(`${mediaId}`) &&
+          (item.size ?? 0) > 0,
+      );
+
+      return found instanceof File ? found.uri : null;
     } catch {
       return null;
     }
-
-    // 3. Fallback: warm up once if never scanned
-    if (!this.hasWarmedUpCache) {
-      this.warmupCache();
-      return this.uriCache.get(mediaId) ?? null;
-    }
-
-    return null;
   }
 
   /**
@@ -339,7 +271,6 @@ class MediaStorageService {
           throw new Error("Download completed but file is invalid or empty");
         }
 
-        this.uriCache.set(_id, downloadedFile.uri);
         onProgress?.(100);
         return downloadedFile.uri;
       } finally {
@@ -368,7 +299,6 @@ class MediaStorageService {
 
       if (sourceFile.exists) {
         await sourceFile.copy(targetFile);
-        this.uriCache.set(id, targetFile.uri);
         return targetFile.uri;
       }
 
@@ -461,10 +391,8 @@ class MediaStorageService {
         });
       });
 
-      this.uriCache.delete(mediaId);
       return deleted;
     } catch {
-      this.uriCache.delete(mediaId);
       return false;
     }
   }
@@ -494,7 +422,6 @@ class MediaStorageService {
       console.warn("Error in clearMediaCache:", err);
     }
 
-    this.uriCache.clear();
     this.initMediaDirectories();
     return this.getStorageStats();
   }

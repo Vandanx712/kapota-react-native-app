@@ -90,7 +90,6 @@ export default function SettingsScreen() {
         styles.screen,
         {
           backgroundColor: colors.background,
-          paddingTop: insets.top,
         },
       ]}
     >
