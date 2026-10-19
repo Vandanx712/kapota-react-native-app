@@ -41,10 +41,7 @@ export default function SplashScreen() {
       <View style={styles.loadingBlock}>
         <ProgressBar />
 
-        <Text
-          style={styles.statusText}
-          className="animate-pulse"
-        >
+        <Text style={styles.statusText}>
           Initializing Secure Protocol
         </Text>
       </View>

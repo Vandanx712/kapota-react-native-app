@@ -1,8 +1,13 @@
 import { useTheme } from "@/theme/ThemeProvider";
 import { spacing, typography } from "@/theme/tokens";
-import { Loader } from "lucide-react-native";
 import React, { useEffect } from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  ActivityIndicator,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -69,7 +74,7 @@ export function PrimaryButton({ onPress, label, loading = false }: Props) {
           activeOpacity={0.85}
         >
           {loading ? (
-            <Loader className="h-5 w-5 animate-spin" />
+            <ActivityIndicator color={colors.onPrimary} size="small" />
           ) : (
             <Text style={styles.text}>{label}</Text>
           )}
