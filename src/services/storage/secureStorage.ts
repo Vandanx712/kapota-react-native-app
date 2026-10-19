@@ -3,17 +3,17 @@ import { appStorage } from "./appStorage";
 
 const TOKEN = "token";
 const DEVICEID = "trustedDeviceId";
-                                                                                               
+
 let cachedToken: string | null = null;
 let cachedDeviceId: string | null = null;
 
 export const secureStorage = {
   setToken: async (token: string) => {
-    cachedToken = token;                                                                                                                        
+    cachedToken = token;
     await SecureStore.setItemAsync(TOKEN, token);
   },
 
-  getToken: async () => {                                                                              
+  getToken: async () => {
     if (cachedToken) return cachedToken;
     const token = await SecureStore.getItemAsync(TOKEN);
     cachedToken = token;
@@ -23,13 +23,13 @@ export const secureStorage = {
   getTokenSync: () => cachedToken,
 
   deleteToken: async () => {
-    cachedToken = null;                                                                                                       
+    cachedToken = null;
     await SecureStore.deleteItemAsync(TOKEN);
   },
 
   setDeviceId: async (id: string) => {
     const stringId = id.toString();
-    cachedDeviceId = stringId;                                                                                                              
+    cachedDeviceId = stringId;
     await SecureStore.setItemAsync(DEVICEID, stringId);
   },
 

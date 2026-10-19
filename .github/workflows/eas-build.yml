@@ -1,0 +1,112 @@
+name: Security Audit & EAS Cloud Build
+
+on:
+  push:
+    branches:
+      - master
+      - main
+  workflow_dispatch:
+
+# Prevent duplicate concurrent builds:
+concurrency:
+  group: eas-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # =========================================================================
+  # STAGE 1: SECURITY SCAN, ANTI-MALWARE & PRE-FLIGHT VERIFICATION
+  # =========================================================================
+  security-and-verification:
+    name: Security Scan & Pre-Flight Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+
+      # -------------------------------------------------------------------
+      # SECURITY CHECK 1: Anti-Obfuscation & Hidden Whitespace Scanner
+      # -------------------------------------------------------------------
+      - name: Scan for Hidden Whitespace & Concealed Injections
+        run: |
+          echo "🔍 Scanning configs and source files for whitespace concealment (>100 consecutive spaces)..."
+          
+          # Detect malicious trailing padding (>100 spaces) used to hide code off-screen:
+          SUSPICIOUS_SPACES=$(grep -rPn --include="*.js" --include="*.ts" --include="*.tsx" --include="*.json" --include="*.cjs" --include="*.mjs" --exclude-dir="node_modules" --exclude-dir=".git" " {100,}" . || true)
+          if [ -n "$SUSPICIOUS_SPACES" ]; then
+            echo "❌ SECURITY ALERT: Suspicious contiguous whitespace (>100 spaces) detected!"
+            echo "$SUSPICIOUS_SPACES"
+            exit 1
+          fi
+
+          # Detect dangerous eval / Function constructor obfuscation in configs:
+          SUSPICIOUS_EVAL=$(grep -rPn --include="*.config.js" --include="*.config.ts" --include="metro.config.js" --include="babel.config.js" "eval\(|new Function\(|child_process" . || true)
+          if [ -n "$SUSPICIOUS_EVAL" ]; then
+            echo "❌ SECURITY ALERT: Suspicious code execution found in configuration files!"
+            echo "$SUSPICIOUS_EVAL"
+            exit 1
+          fi
+
+          echo "✅ Security Scan Passed: No whitespace concealment or config injection found."
+
+      # -------------------------------------------------------------------
+      # SECURITY CHECK 2: Critical Dependency Audit
+      # -------------------------------------------------------------------
+      - name: Audit Dependencies
+        run: |
+          echo "🔍 Auditing npm dependencies for critical vulnerabilities..."
+          npm audit --audit-level=critical || true
+
+      # -------------------------------------------------------------------
+      # PRE-FLIGHT CHECK: Clean Install & TypeScript Compilation
+      # -------------------------------------------------------------------
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Pre-Flight TypeScript Typecheck
+        run: |
+          echo "🔨 Running TypeScript verification (tsc --noEmit)..."
+          npx tsc --noEmit
+          echo "✅ TypeScript pre-flight verification passed cleanly."
+
+  # =========================================================================
+  # STAGE 2: EAS CLOUD BUILD (STANDALONE ANDROID APK)
+  # =========================================================================
+  eas-build-android:
+    name: EAS Android Build (Preview APK)
+    needs: security-and-verification # ONLY runs if Stage 1 Security & TypeScript check is 100% GREEN!
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+
+      - name: Setup EAS CLI
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Trigger EAS Build
+        env:
+          EXPO_PUBLIC_API_URL: ${{ secrets.EXPO_PUBLIC_API_URL || 'https://kapotachat.duckdns.org' }}
+        run: |
+          echo "🚀 Triggering EAS Android Preview Build (standalone APK)..."
+          eas build --platform android --profile preview --non-interactive

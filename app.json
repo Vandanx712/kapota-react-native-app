@@ -4,12 +4,17 @@
     "slug": "Kapota",
     "version": "1.0.0",
     "orientation": "portrait",
+    "icon": "./assets/images/kapota-splash-logo.png",
     "scheme": "kapotamobile",
     "userInterfaceStyle": "automatic",
     "android": {
       "package": "com.kapotachatapp",
       "googleServicesFile": "./google-services.json",
       "predictiveBackGestureEnabled": false,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/kapota-splash-logo.png",
+        "backgroundColor": "#FFFFFF"
+      },
       "permissions": [
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE",
@@ -40,11 +45,30 @@
           }
         }
       ],
+      [
+        "expo-file-system",
+        {
+          "supportsOpeningDocumentsInPlace": true,
+          "enableFileSharing": true
+        }
+      ],
       "expo-image",
       "expo-secure-store",
       "expo-web-browser",
       "expo-camera",
-      "expo-notifications"
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow Kapota to access your location to discover nearby places and connect with your community."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/kapota-splash-logo.png",
+          "color": "#5B4CF0"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

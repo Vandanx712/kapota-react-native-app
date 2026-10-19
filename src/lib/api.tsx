@@ -1,14 +1,17 @@
 import { secureStorage } from "@/services/storage/secureStorage";
 import axios, { isAxiosError } from "axios";
 
+const RAW_BASE = process.env.EXPO_PUBLIC_API_URL?.trim();
+const API_BASE_URL = RAW_BASE || "https://kapotachat.duckdns.org";
+
 // eslint-disable-next-line import/no-named-as-default-member
 export const api = axios.create({
-  baseURL: `${process.env.EXPO_PUBLIC_API_URL}/api`,
+  baseURL: `${API_BASE_URL.replace(/\/+$/, "")}/api`,
   headers: {
     "Content-Type": "application/json",
   },
 });
-                                                                                    
+
 api.interceptors.request.use((config) => {
   try {
     const token = secureStorage.getTokenSync();

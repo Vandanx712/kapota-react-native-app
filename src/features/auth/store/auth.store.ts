@@ -313,7 +313,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
 
     const token = await secureStorage.getToken();
-    const socketUrl = process.env.EXPO_PUBLIC_API_URL;
+    const socketUrl =
+      process.env.EXPO_PUBLIC_API_URL?.trim() ||
+      "https://kapotachat.duckdns.org";
     if (!token || !socketUrl) return;
 
     const socket = io(socketUrl, {
